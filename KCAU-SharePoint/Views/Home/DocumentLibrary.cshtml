@@ -1,0 +1,505 @@
+﻿@using KCAU_SharePoint.Models
+@{
+    ViewBag.Title = "Document Library";
+    var items = ViewBag.Items as List<SPItem>;
+    string studentNo = null;
+}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<!-- DataTables Bootstrap 5 integration -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<!-- SweetAlert2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+<!-- SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
+<div class="container-fluid">
+
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="fw-semibold mb-0">Documents</h4>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="bi bi-upload me-1"></i> Upload
+            </button>
+
+            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#createFolderModal">
+                <i class="bi bi-folder-plus me-1"></i> New Folder
+            </button>
+
+        </div>
+    </div>
+
+    <!-- BREADCRUMB -->
+    <nav class="mb-3">
+        <span class="text-muted">Documents</span>
+        <span id="breadcrumb"></span>
+    </nav>
+
+    <h5 class="fw-semibold mb-3">Library: @ViewBag.LibraryUrl</h5>
+
+    @if (items != null && items.Any())
+    {
+        var allColumns = items.SelectMany(i => i.Metadata.Keys).Distinct().ToList();
+
+        <!-- TABLE WRAPPER -->
+<table id="documentsTable" class="table table-hover table-bordered align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            @foreach (var col in allColumns)
+            {
+                <th>@col</th>
+            }
+            <th>Actions</th>
+        </tr>
+        <tr>
+            <th><input type="text" class="form-control form-control-sm" placeholder="Search Name" /></th>
+            <th>
+                <select class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="File">File</option>
+                    <option value="Folder">Folder</option>
+                </select>
+            </th>
+
+            @foreach (var col in allColumns)
+            {
+                <th><input type="text" class="form-control form-control-sm" placeholder="Search" /></th>
+            }
+
+            <th></th>
+        </tr>
+    </thead>
+
+    <tbody>
+    <tbody>
+        @foreach (var item in items)
+        {
+
+            if (item.IsFolder && item.Name.Contains("-"))
+            {
+                var splited = item.Name.Split('-');
+                if (splited.Length > 1)
+                {
+                    studentNo = splited[1];
+                }
+            }
+
+            <tr>
+                <!-- NAME COLUMN (ONE TD ONLY) -->
+                <td>
+                    @if (item.IsFolder)
+                    {
+                        <a href="@Url.Action("DocumentLibrary","Home", new { libraryUrl = item.Url })"
+                           class="text-decoration-none">
+                            <i class="bi bi-folder-fill text-warning me-1"></i>
+                            <strong>@studentNo</strong>
+                            <small class="text-muted">(@item.Name)</small>
+                        </a>
+                    }
+                    else
+                    {
+                        <i class="bi bi-file-earmark-text me-1 text-secondary"></i>
+                        @item.Name
+                    }
+                </td>
+
+                <!-- TYPE COLUMN -->
+                <td>@(item.IsFolder ? "Folder" : "File")</td>
+
+                <!-- METADATA -->
+                @foreach (var col in allColumns)
+                {
+                    <td>@(item.Metadata.ContainsKey(col) ? item.Metadata[col] : "")</td>
+                }
+
+                <!-- ACTIONS -->
+                <td class="text-center">
+                    @if (!item.IsFolder)
+                    {
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-light" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" href="javascript:void(0)"
+                                       onclick="openViewer('@item.Url')">
+                                        <i class="bi bi-eye me-2"></i> View
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item text-warning"
+                                       href="javascript:void(0)"
+                                       onclick="renameItem('@item.Url', false, '@item.Name')">
+                                        <i class="bi bi-pencil me-2"></i> Edit
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item text-muted"
+                                       href="javascript:void(0)"
+                                       onclick="showVersions('@item.Url')">
+                                        <i class="bi bi-clock-history me-2"></i> Versions
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item text-danger"
+                                       href="javascript:void(0)"
+                                       onclick="deleteItem('@item.Url', false)">
+                                        <i class="bi bi-trash me-2"></i> Delete
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    }
+                    else
+                    {
+                        <a href="javascript:void(0)"
+                           class="text-warning me-2 text-decoration-none"
+                           onclick="renameItem('@item.Url', true, '@item.Name')">
+                            <i class="bi bi-pencil me-1"></i> Edit
+                        </a>
+
+                        <a href="javascript:void(0)"
+                           class="text-danger text-decoration-none"
+                           onclick="deleteItem('@item.Url', true)">
+                            <i class="bi bi-trash me-1"></i> Delete
+                        </a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+
+    </tbody>
+</table>
+
+
+    }
+    else
+    {
+        <p class="text-muted">This library is empty.</p>
+    }
+</div>
+
+<!-- VIEW MODAL -->
+<div class="modal fade" id="fileViewerModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Document Viewer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body p-0" style="height:75vh;">
+                <iframe id="fileViewerFrame"
+                        src=""
+                        style="width:100%; height:100%; border:none;">
+                </iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- VERSIONS MODAL -->
+<div class="modal fade" id="versionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">File Versions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-2">
+                <ul class="list-group" id="versionsList"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload Document</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <input type="file" id="uploadFile" class="form-control" />
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="uploadFile()">Upload</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="createFolderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Folder</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <input type="text" id="folderName" class="form-control" placeholder="Folder name" />
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="createFolder()">Create</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- SCRIPT -->
+<script>
+    // ---------------------
+    // Document Viewer
+    // ---------------------
+    function openViewer(fileUrl) {
+        $.ajax({
+            url: '/Home/ViewDocument',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ fileUrl: fileUrl }),
+            success: function (res) {
+                if (!res.success) {
+                    alert(res.message);
+                    return;
+                }
+
+                const frame = $("#fileViewerFrame");
+                frame.attr("src", `data:${res.contentType};base64,${res.base64}`);
+
+                var modal = new bootstrap.Modal(document.getElementById("fileViewerModal"));
+                modal.show();
+            },
+            error: function () {
+                alert("Unable to view document");
+            }
+        });
+    }
+
+    // ---------------------
+    // File Versions
+    // ---------------------
+    function showVersions(fileUrl) {
+        $.ajax({
+            url: '/Home/GetFileVersions',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ fileUrl: fileUrl }),
+            success: function (res) {
+                if (!res.success) {
+                    alert(res.message);
+                    return;
+                }
+
+                const list = $("#versionsList");
+                list.empty();
+
+                res.versions.forEach(function (v) {
+                    const li = $(`
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>Version:</strong> ${v.VersionLabel} <br/>
+                            <small>By ${v.CreatedBy} on ${new Date(v.Created).toLocaleString()}</small>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="openViewer('${v.Url}?version=${v.VersionLabel}')">
+                                View
+                            </button>
+                            <a class="btn btn-sm btn-outline-success" href="${v.Url}?version=${v.VersionLabel}" download>
+                                Download
+                            </a>
+                        </div>
+                    </li>
+                `);
+                    list.append(li);
+                });
+
+                var modal = new bootstrap.Modal(document.getElementById('versionsModal'));
+                modal.show();
+            },
+            error: function () {
+                alert("Unable to fetch versions");
+            }
+        });
+    }
+
+
+</script>
+<script>
+    $(document).ready(function () {
+
+        const table = $('#documentsTable').DataTable({
+            paging: true,
+            searching: true,
+            ordering: true,
+            info: true,
+            responsive: true,
+            orderCellsTop: true,
+            fixedHeader: true,
+            columnDefs: [
+                { orderable: false, targets: -1 } // Actions column
+            ]
+        });
+
+        // Column filters
+        $('#documentsTable thead tr:eq(1) th').each(function (i) {
+            $('input, select', this).on('keyup change clear', function () {
+                if (table.column(i).search() !== this.value) {
+                    table.column(i).search(this.value).draw();
+                }
+            });
+        });
+    });
+
+    // ===================== UPLOAD FILE =====================
+    function uploadFile() {
+        const input = document.getElementById('uploadFile');
+        if (!input || input.files.length === 0) {
+            alert("Please select a file");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", input.files[0]);
+        formData.append("libraryUrl", '@ViewBag.LibraryUrl');
+
+        $.ajax({
+            url: '/Home/UploadFile',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (res) {
+                if (!res || res.success !== true) {
+                    alert(res?.message || "Upload failed");
+                    return;
+                }
+                location.reload();
+            },
+            error: function () {
+                alert("Error uploading file");
+            }
+        });
+    }
+
+    // ===================== CREATE FOLDER =====================
+   function createFolder() {
+    const folderName = $('#folderName').val().trim();
+    if (!folderName) {
+        alert("Enter folder name");
+        return;
+    }
+
+    $.ajax({
+        url: '/Home/CreateFolder',
+        type: 'POST',
+        data: {
+            folderName: folderName,
+            libraryUrl: '@ViewBag.LibraryUrl'
+        },
+        success: function (res) {
+            if (!res.success) {
+                alert(res.message);
+                return;
+            }
+            location.reload();
+        },
+        error: function (xhr) {
+            alert(xhr.responseText);
+        }
+    });
+    }
+  function deleteItem(itemUrl, isFolder) {
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "Do you want to delete this " + (isFolder ? "folder" : "file") + "?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Proceed with AJAX delete
+            $.ajax({
+                url: '@Url.Action("DeleteItem","Home")',
+                type: 'POST',
+                data: { itemUrl: itemUrl, isFolder: isFolder },
+                success: function(res) {
+                    if (res.success) {
+                        Swal.fire(
+                            'Deleted!',
+                            (isFolder ? 'Folder' : 'File') + ' has been deleted.',
+                            'success'
+                        ).then(() => location.reload());
+                    } else {
+                        Swal.fire('Error', res.message, 'error');
+                    }
+                },
+                error: function(xhr) {
+                    Swal.fire('Error', xhr.responseText, 'error');
+                }
+            });
+        }
+    });
+}
+    function renameItem(itemUrl, isFolder, currentName) {
+    Swal.fire({
+        title: 'Rename ' + (isFolder ? 'Folder' : 'File'),
+        input: 'text',
+        inputLabel: 'New Name',
+        inputValue: currentName,
+        showCancelButton: true,
+        confirmButtonText: 'Rename',
+        cancelButtonText: 'Cancel',
+        preConfirm: (newName) => {
+            if (!newName || newName.trim() === "") {
+                Swal.showValidationMessage('Name cannot be empty');
+            }
+            return newName.trim();
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: '@Url.Action("RenameItem", "Home")',
+                type: 'POST',
+                data: {
+                    itemUrl: itemUrl,
+                    isFolder: isFolder,
+                    newName: result.value
+                },
+                success: function(res) {
+                    if (res.success) {
+                        Swal.fire('Renamed!', (isFolder ? 'Folder' : 'File') + ' renamed successfully.', 'success')
+                            .then(() => location.reload());
+                    } else {
+                        Swal.fire('Error', res.message, 'error');
+                    }
+                },
+                error: function(xhr) {
+                    Swal.fire('Error', xhr.responseText, 'error');
+                }
+            });
+        }
+    });
+}
+
+</script>
+
+
+

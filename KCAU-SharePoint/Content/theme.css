@@ -1,0 +1,144 @@
+﻿/* ===============================
+   GLOBAL THEME VARIABLES
+   =============================== */
+:root {
+    /* Bootstrap overrides */
+    --bs-primary: #192C57; /* Dark Navy */
+    --bs-secondary: #CBAE2D; /* Gold Yellow */
+    --bs-success: #198754;
+    --bs-danger: #dc3545;
+    --bs-warning: #CBAE2D;
+    --bs-info: #192C57;
+    --bs-light: #f8f9fa;
+    --bs-dark: #192C57;
+    /* App-specific */
+    --app-bg: #f4f6fb;
+    --app-sidebar-bg: #192C57;
+    --app-topbar-bg: #ffffff;
+    --app-card-bg: #ffffff;
+    --app-text: #1f2937;
+    --app-muted: #6b7280;
+}
+
+/* ===============================
+   GLOBAL STYLES
+   =============================== */
+body {
+    background-color: var(--app-bg);
+    color: var(--app-text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+/* ===============================
+   SIDEBAR
+   =============================== */
+.sidebar {
+    background-color: var(--app-sidebar-bg);
+}
+
+    .sidebar .nav-link {
+        color: #ffffff;
+        border-radius: 6px;
+    }
+
+        .sidebar .nav-link:hover {
+            background-color: rgba(203, 174, 45, 0.2); /* gold hover */
+        }
+
+        .sidebar .nav-link.active {
+            background-color: var(--bs-secondary);
+            color: #192C57;
+            font-weight: 600;
+        }
+
+/* ===============================
+   TOPBAR
+   =============================== */
+.navbar {
+    background-color: var(--app-topbar-bg) !important;
+}
+
+    .navbar .dropdown-toggle {
+        color: var(--bs-primary);
+    }
+
+    .navbar .dropdown-menu {
+        border-radius: 8px;
+    }
+
+/* ===============================
+   CARDS
+   =============================== */
+.card {
+    background-color: var(--app-card-bg);
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* ===============================
+   LINKS
+   =============================== */
+a {
+    color: var(--bs-primary);
+}
+
+    a:hover {
+        color: var(--bs-secondary);
+    }
+
+/* ===============================
+   BUTTONS
+   =============================== */
+.btn-primary {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+    .btn-primary:hover,
+    .btn-primary:focus {
+        background-color: #142347; /* darker navy */
+        border-color: #142347;
+    }
+
+.btn-outline-primary {
+    color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+    .btn-outline-primary:hover {
+        background-color: var(--bs-primary);
+        color: #fff;
+    }
+
+/* Gold accent button */
+.btn-gold {
+    background-color: var(--bs-secondary);
+    border-color: var(--bs-secondary);
+    color: #192C57;
+    font-weight: 600;
+}
+
+    .btn-gold:hover {
+        background-color: #b79b26;
+        border-color: #b79b26;
+    }
+
+/* ===============================
+   TEXT HELPERS
+   =============================== */
+.text-muted {
+    color: var(--app-muted) !important;
+}
+
+.text-gold {
+    color: var(--bs-secondary) !important;
+}
+
+.bg-navy {
+    background-color: var(--bs-primary) !important;
+}
+
+.bg-gold {
+    background-color: var(--bs-secondary) !important;
+}

@@ -1,0 +1,125 @@
+﻿@model KCAU_SharePoint.Models.DashboardViewModel
+@{
+    ViewBag.Title = "Dashboard";
+}
+
+<!-- Include jQuery and DataTables CSS/JS -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<div class="container-fluid">
+
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-semibold mb-0">System Dashboard</h4>
+        <span class="text-muted">Overview of EDM activities</span>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-folder2-open fs-2 text-primary me-3"></i>
+                        <div>
+                            <h6 class="mb-0">Total Documents</h6>
+                            <h4 class="fw-bold">@Model.TotalDocuments</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-upload fs-2 text-success me-3"></i>
+                        <div>
+                            <h6 class="mb-0">Uploads Today</h6>
+                            <h4 class="fw-bold">@Model.UploadsToday</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-people fs-2 text-info me-3"></i>
+                        <div>
+                            <h6 class="mb-0">Active Users</h6>
+                            <h4 class="fw-bold">@Model.ActiveUsers</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activities -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white fw-semibold">
+            Recent Activities
+        </div>
+        <div class="card-body p-0">
+            <table id="recentActivitiesTable" class="table table-hover table-bordered mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>User</th>
+                        <th>Activity</th>
+                        <th>Document</th>
+                        <th>Date</th>
+                    </tr>
+                    <tr>
+                        <!-- Filter row -->
+                        <th><input type="text" class="form-control form-control-sm" placeholder="Search User" /></th>
+                        <th><input type="text" class="form-control form-control-sm" placeholder="Search Activity" /></th>
+                        <th><input type="text" class="form-control form-control-sm" placeholder="Search Document" /></th>
+                        <th><input type="text" class="form-control form-control-sm" placeholder="Search Date" /></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var act in Model.RecentActivities.OrderByDescending(a => a.Date))
+                    {
+                        <tr>
+                            <td>@act.User</td>
+                            <td>@act.Activity</td>
+                            <td>@act.Document</td>
+                            <td>@act.Date.ToString("dd MMM yyyy")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    $(document).ready(function () {
+        // Initialize DataTable
+        var table = $('#recentActivitiesTable').DataTable({
+            paging: true,
+            ordering: true,
+            info: true,
+            orderCellsTop: true,
+            fixedHeader: true,
+            responsive: true
+        });
+
+        // Apply column search
+        $('#recentActivitiesTable thead tr:eq(1) th').each(function (i) {
+            $('input', this).on('keyup change clear', function () {
+                if (table.column(i).search() !== this.value) {
+                    table.column(i).search(this.value).draw();
+                }
+            });
+        });
+    });
+</script>
