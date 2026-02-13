@@ -9,7 +9,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>University of Embu EDMs | Sign In</title>
+    <title>KCAU EDMs | Sign In</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!-- Bootstrap 5 -->
@@ -26,11 +26,16 @@
 
                         <!-- Header -->
                         <div class="text-center mb-4">
-                            <h4 class="fw-bold">University of EMBU EDMs</h4>
+                            <h4 class="fw-bold">KCAU EDMs</h4>
                         </div>
 
                         <hr />
-
+                        @if (!ViewData.ModelState.IsValid)
+                        {
+                            <div class="alert alert-danger">
+                                @Html.ValidationSummary(false)
+                            </div>
+                        }
                         @using (Html.BeginForm("Login", "Account", FormMethod.Post))
                         {
                             @Html.AntiForgeryToken()

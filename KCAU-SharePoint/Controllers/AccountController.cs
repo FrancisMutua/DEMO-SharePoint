@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Configuration;
 using System.Net;
 using System.Web.Mvc;
 using KCAU_SharePoint.Models;
@@ -8,10 +9,14 @@ namespace KCAU_SharePoint.Controllers
 {
     public class AccountController : Controller
     {
-        // Your SharePoint site URL
-        private string siteUrl = "http://41.89.240.139/sites/edms";
+		Helper helper;
 
-        public ActionResult Login()
+		public AccountController()
+		{
+            helper = new Helper();
+        }
+
+		public ActionResult Login()
         {
             return View(new UserModel());
         }
@@ -23,55 +28,38 @@ namespace KCAU_SharePoint.Controllers
             if (!ModelState.IsValid)
                 return View(model);
 
-            // Authenticate via SharePoint
-            if (ValidateUserSharePoint(model.Username, model.Password))
+            var helper = new Helper();
+
+            try
             {
-                // Store username in session
+                // Pass username/password directly here
+                using (var context = helper.GetContext(model.Username, model.Password))
+                {
+                    Web web = context.Web;
+                    context.Load(web, w => w.Title);
+                    context.ExecuteQuery(); // test credentials
+                }
+
+                // ✅ LOGIN SUCCESS: store in session
                 Session["Username"] = model.Username;
+                Session["password"] = model.Password;
 
                 return RedirectToAction("Index", "Home");
             }
-            else
+            catch (ClientRequestException)
+            {
+                ModelState.AddModelError("", "Unable to connect to SharePoint. Please try again later.");
+            }
+            catch (ServerUnauthorizedAccessException)
             {
                 ModelState.AddModelError("", "Invalid username or password.");
-                return View(model);
-            }
-        }
-
-        private bool ValidateUserSharePoint(string username, string password)
-        {
-            try
-            {
-                using (var context = new ClientContext(siteUrl))
-                {
-                    // Domain name (Active Directory domain)
-                    string domain = "UOEMDOMAIN"; 
-
-                    // Use NetworkCredential for Windows Authentication
-                    context.Credentials = new NetworkCredential(username, password, domain);
-
-                    // Pre-authenticate to avoid multiple round trips
-                    context.ExecutingWebRequest += (sender, e) =>
-                    {
-                        e.WebRequestExecutor.WebRequest.PreAuthenticate = true;
-                    };
-
-                    // Attempt to load a simple property to validate login
-                    Web web = context.Web;
-                    context.Load(web, w => w.Title);
-                    context.ExecuteQuery(); 
-
-                    return true; // Login successful
-                }
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return false;
             }
             catch (Exception ex)
             {
-                return false;
+                ModelState.AddModelError("", "Login failed: " + ex.Message);
             }
+
+            return View(model);
         }
 
         public ActionResult Logout()

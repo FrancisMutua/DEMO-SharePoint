@@ -2,7 +2,6 @@
 @{
     ViewBag.Title = "Document Library";
     var items = ViewBag.Items as List<SPItem>;
-    string studentNo = null;
 }
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <!-- DataTables Bootstrap 5 integration -->
@@ -12,13 +11,40 @@
 <!-- SweetAlert2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 <!-- SweetAlert2 JS -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
 
+<style>
+    #pdfViewerContainer {
+        width: 100%;
+        height: 800px;
+        border: 1px solid #ccc;
+        overflow-y: auto;
+        position: relative;
+        user-select: none; /* disable text selection */
+    }
 
+    canvas {
+        display: block;
+        margin: 0 auto 10px auto;
+    }
+
+    /* Overlay to block right-click */
+    #scrollOverlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 10;
+        cursor: default;
+    }
+</style>
 <div class="container-fluid">
 
     <!-- HEADER -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex justify-content-between align-items-center p-2 mb-3">
         <h4 class="fw-semibold mb-0">Documents</h4>
 
         <div class="d-flex gap-2">
@@ -39,145 +65,162 @@
         <span id="breadcrumb"></span>
     </nav>
 
-    <h5 class="fw-semibold mb-3">Library: @ViewBag.LibraryUrl</h5>
+    @*<h5 class="fw-semibold mb-3">Library: @ViewBag.LibraryUrl</h5>*@
 
     @if (items != null && items.Any())
     {
         var allColumns = items.SelectMany(i => i.Metadata.Keys).Distinct().ToList();
 
         <!-- TABLE WRAPPER -->
-<table id="documentsTable" class="table table-hover table-bordered align-middle">
-    <thead class="table-light">
-        <tr>
-            <th>Name</th>
-            <th>Type</th>
-            @foreach (var col in allColumns)
-            {
-                <th>@col</th>
-            }
-            <th>Actions</th>
-        </tr>
-        <tr>
-            <th><input type="text" class="form-control form-control-sm" placeholder="Search Name" /></th>
-            <th>
-                <select class="form-select form-select-sm">
-                    <option value="">All</option>
-                    <option value="File">File</option>
-                    <option value="Folder">Folder</option>
-                </select>
-            </th>
+        <table id="documentsTable" class="table table-hover table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    @foreach (var col in allColumns)
+                    {
+                        <th>@col</th>
+                    }
+                    <th>Actions</th>
+                </tr>
+                <tr>
+                    <th><input type="text" class="form-control form-control-sm" placeholder="Search Name" /></th>
+                    <th>
+                        <select class="form-select form-select-sm">
+                            <option value="">All</option>
+                            <option value="File">File</option>
+                            <option value="Folder">Folder</option>
+                        </select>
+                    </th>
 
-            @foreach (var col in allColumns)
-            {
-                <th><input type="text" class="form-control form-control-sm" placeholder="Search" /></th>
-            }
+                    @foreach (var col in allColumns)
+                    {
+                        <th><input type="text" class="form-control form-control-sm" placeholder="Search" /></th>
+                    }
 
-            <th></th>
-        </tr>
-    </thead>
+                    <th></th>
+                </tr>
+            </thead>
 
-    <tbody>
-    <tbody>
-        @foreach (var item in items)
-        {
-
-            if (item.IsFolder && item.Name.Contains("-"))
-            {
-                var splited = item.Name.Split('-');
-                if (splited.Length > 1)
+            <tbody>
+                @foreach (var item in items)
                 {
-                    studentNo = splited[1];
+
+
+                    <tr>
+                        <!-- NAME COLUMN (ONE TD ONLY) -->
+                        <td>
+                            @if (item.IsFolder)
+                            {
+                                <a href="@Url.Action("DocumentLibrary","Home", new { libraryUrl = item.Url })"
+                                   class="text-decoration-none">
+                                    <i class="bi bi-folder-fill text-warning me-1"></i>
+                                    <small>@item.Name</small>
+                                </a>
+                            }
+                            else
+                            {
+                                <i class="bi bi-file-earmark-text me-1 text-secondary"></i>
+                                @item.Name
+                            }
+                        </td>
+
+                        <!-- TYPE COLUMN -->
+                        <td>@(item.IsFolder ? "Folder" : "File")</td>
+
+                        <!-- METADATA -->
+                        @foreach (var col in allColumns)
+                        {
+                            <td>@(item.Metadata.ContainsKey(col) ? item.Metadata[col] : "")</td>
+                        }
+                        <!-- ACTIONS -->
+                        <td class="text-center">
+                            @if (!item.IsFolder)
+                            {
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light" data-bs-toggle="dropdown">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <a class="dropdown-item" href="javascript:void(0)"
+                                               onclick="openViewer('@item.Url')">
+                                                <i class="bi bi-eye me-2"></i> View
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item text-primary"
+                                               href="javascript:void(0)"
+                                               onclick="submitForApproval('@item.Url', '@item.Name', @ViewBag.CurrentWorkflowId)">
+                                                <i class="bi bi-send me-2"></i> Send for Approval
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item text-warning"
+                                               href="javascript:void(0)"
+                                               onclick="renameItem('@item.Url', false, '@item.Name')">
+                                                <i class="bi bi-pencil me-2"></i> Edit
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item text-muted"
+                                               href="javascript:void(0)"
+                                               onclick="showVersions('@item.Url')">
+                                                <i class="bi bi-clock-history me-2"></i> Versions
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item text-danger"
+                                               href="javascript:void(0)"
+                                               onclick="deleteItem('@item.Url', false)">
+                                                <i class="bi bi-trash me-2"></i> Delete
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light" data-bs-toggle="dropdown">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <a class="dropdown-item"
+                                               href="javascript:void(0)"
+                                               onclick="shareItem('@item.Url')">
+                                                <i class="bi bi-share me-2"></i> Share
+                                            </a>
+                                        </li>
+                                       
+
+                                        <li>
+                                            <a class="dropdown-item text-warning"
+                                               href="javascript:void(0)"
+                                               onclick="renameItem('@item.Url', false, '@item.Name')">
+                                                <i class="bi bi-pencil me-2"></i> Edit
+                                            </a>
+                                        </li>
+
+                                        <li>
+                                            <a class="dropdown-item text-danger"
+                                               href="javascript:void(0)"
+                                               onclick="deleteItem('@item.Url', false)">
+                                                <i class="bi bi-trash me-2"></i> Delete
+                                            </a>
+                                        </li>
+                                    </ul>
+
+                                </div>
+
+                            }
+                        </td>
+                    </tr>
                 }
-            }
+            </tbody>
 
-            <tr>
-                <!-- NAME COLUMN (ONE TD ONLY) -->
-                <td>
-                    @if (item.IsFolder)
-                    {
-                        <a href="@Url.Action("DocumentLibrary","Home", new { libraryUrl = item.Url })"
-                           class="text-decoration-none">
-                            <i class="bi bi-folder-fill text-warning me-1"></i>
-                            <strong>@studentNo</strong>
-                            <small class="text-muted">(@item.Name)</small>
-                        </a>
-                    }
-                    else
-                    {
-                        <i class="bi bi-file-earmark-text me-1 text-secondary"></i>
-                        @item.Name
-                    }
-                </td>
-
-                <!-- TYPE COLUMN -->
-                <td>@(item.IsFolder ? "Folder" : "File")</td>
-
-                <!-- METADATA -->
-                @foreach (var col in allColumns)
-                {
-                    <td>@(item.Metadata.ContainsKey(col) ? item.Metadata[col] : "")</td>
-                }
-
-                <!-- ACTIONS -->
-                <td class="text-center">
-                    @if (!item.IsFolder)
-                    {
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-light" data-bs-toggle="dropdown">
-                                <i class="bi bi-three-dots-vertical"></i>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li>
-                                    <a class="dropdown-item" href="javascript:void(0)"
-                                       onclick="openViewer('@item.Url')">
-                                        <i class="bi bi-eye me-2"></i> View
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item text-warning"
-                                       href="javascript:void(0)"
-                                       onclick="renameItem('@item.Url', false, '@item.Name')">
-                                        <i class="bi bi-pencil me-2"></i> Edit
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item text-muted"
-                                       href="javascript:void(0)"
-                                       onclick="showVersions('@item.Url')">
-                                        <i class="bi bi-clock-history me-2"></i> Versions
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item text-danger"
-                                       href="javascript:void(0)"
-                                       onclick="deleteItem('@item.Url', false)">
-                                        <i class="bi bi-trash me-2"></i> Delete
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    }
-                    else
-                    {
-                        <a href="javascript:void(0)"
-                           class="text-warning me-2 text-decoration-none"
-                           onclick="renameItem('@item.Url', true, '@item.Name')">
-                            <i class="bi bi-pencil me-1"></i> Edit
-                        </a>
-
-                        <a href="javascript:void(0)"
-                           class="text-danger text-decoration-none"
-                           onclick="deleteItem('@item.Url', true)">
-                            <i class="bi bi-trash me-1"></i> Delete
-                        </a>
-                    }
-                </td>
-            </tr>
-        }
-    </tbody>
-
-    </tbody>
-</table>
+        </table>
 
 
     }
@@ -189,6 +232,7 @@
 
 <!-- VIEW MODAL -->
 <div class="modal fade" id="fileViewerModal" tabindex="-1">
+
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -206,20 +250,26 @@
     </div>
 </div>
 
-<!-- VERSIONS MODAL -->
-<div class="modal fade" id="versionsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+<div class="modal fade" id="fileViewerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">File Versions</h5>
+                <h5 class="modal-title">Document Viewer</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-2">
-                <ul class="list-group" id="versionsList"></ul>
+
+            <div class="modal-body p-0">
+                <iframe id="fileViewerFrame"
+                        src=""
+                        style="width:100%; border:none; height:600px;">
+                </iframe>
             </div>
         </div>
     </div>
 </div>
+
+
+
 
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog">
@@ -260,39 +310,168 @@
     </div>
 </div>
 
+<div class="modal fade" id="shareModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-share me-2"></i> Share
+                </h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
 
-<!-- SCRIPT -->
+            <div class="modal-body">
+                <label class="form-label">Add people</label>
+                <input type="text"
+                       id="shareUser"
+                       class="form-control"
+                       placeholder="Search name or username"
+                       autocomplete="off" />
+
+                <ul class="list-group position-absolute w-100 d-none"
+                    id="userResults"
+                    style="z-index:1056; max-height:200px; overflow:auto;">
+                </ul>
+
+                <label class="form-label mt-3">Permission</label>
+                <select id="shareRole" class="form-select">
+                    <option value="Read">Can view</option>
+                    <option value="Edit">Can edit</option>
+                </select>
+
+                <button class="btn btn-primary mt-3 w-100" onclick="grantAccess()">
+                    Share
+                </button>
+
+                <hr />
+
+                <label class="form-label">Link</label>
+                <div class="input-group">
+                    <input type="text" id="shareLink" class="form-control" readonly />
+                    <button class="btn btn-outline-secondary" onclick="copyShareLink()">
+                        <i class="bi bi-clipboard"></i>
+                    </button>
+                </div>
+
+                <small class="text-muted mt-2 d-block">
+                    Access is controlled by SharePoint permissions
+                </small>
+            </div>
+
+        </div>
+    </div>
+</div>
+
 <script>
-    // ---------------------
-    // Document Viewer
-    // ---------------------
-    function openViewer(fileUrl) {
-        $.ajax({
-            url: '/Home/ViewDocument',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ fileUrl: fileUrl }),
-            success: function (res) {
-                if (!res.success) {
-                    alert(res.message);
-                    return;
-                }
-
-                const frame = $("#fileViewerFrame");
-                frame.attr("src", `data:${res.contentType};base64,${res.base64}`);
-
-                var modal = new bootstrap.Modal(document.getElementById("fileViewerModal"));
-                modal.show();
-            },
-            error: function () {
-                alert("Unable to view document");
+    function submitForApproval(itemUrl, itemName, workflowId) {
+        Swal.fire({
+            title: 'Send for Approval?',
+            showCancelButton: true,
+            confirmButtonText: 'Yes'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post('/Workflow/SubmitForApproval',
+                    { itemUrl: itemUrl, itemName: itemName, workflowId: workflowId },
+                    function (res) {
+                        if (res.success) {
+                            Swal.fire('Submitted!', '', 'success').then(() => location.reload());
+                        } else {
+                            Swal.fire('Error', res.message, 'error');
+                        }
+                    });
             }
         });
     }
 
-    // ---------------------
-    // File Versions
-    // ---------------------
+
+    function openViewer(fileUrl) {
+        const restrictedPath = "/Legal Services Departments/KCAU POLICIES";
+        const isRestricted = fileUrl.includes(restrictedPath);
+
+        if (isRestricted) {
+            // Use PDF.js viewer for restricted PDFs (Base64)
+            $.ajax({
+                url: '/Home/ViewDocument', // same endpoint as normal files
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ fileUrl: fileUrl }),
+                success: function (res) {
+                    if (!res.success) {
+                        alert(res.message);
+                        return;
+                    }
+
+                    // Prepare modal body
+                    const modalBody = $('#fileViewerModal .modal-body');
+                    modalBody.html(`
+                    <div id="pdfViewerContainer" style="width:100%; height:100%; position:relative;">
+                        <div id="scrollOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:10;cursor:default;"></div>
+                    </div>
+                `);
+
+                    const container = document.getElementById('pdfViewerContainer');
+                    const overlay = document.getElementById('scrollOverlay');
+
+                    // Block right-click
+                    overlay.addEventListener('contextmenu', e => e.preventDefault());
+
+                    // PDF.js worker
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+                    // Convert Base64 to Uint8Array
+                    const pdfData = atob(res.base64);
+                    const pdfUint8 = new Uint8Array(pdfData.length);
+                    for (let i = 0; i < pdfData.length; i++) pdfUint8[i] = pdfData.charCodeAt(i);
+
+                    // Load PDF
+                    pdfjsLib.getDocument({ data: pdfUint8 }).promise.then(pdf => {
+                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                            pdf.getPage(pageNum).then(page => {
+                                const canvas = document.createElement('canvas');
+                                container.appendChild(canvas);
+                                const viewport = page.getViewport({ scale: 1.2 });
+                                canvas.height = viewport.height;
+                                canvas.width = viewport.width;
+                                const context = canvas.getContext('2d');
+                                page.render({ canvasContext: context, viewport: viewport });
+                            });
+                        }
+                    });
+
+                    // Show modal
+                    new bootstrap.Modal(document.getElementById("fileViewerModal")).show();
+                },
+                error: function () {
+                    alert("Unable to view document");
+                }
+            });
+        } else {
+            // Normal file handling (iframe) for all other documents
+            $.ajax({
+                url: '/Home/ViewDocument',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ fileUrl: fileUrl }),
+                success: function (res) {
+                    if (!res.success) {
+                        alert(res.message);
+                        return;
+                    }
+
+                    const frame = $("#fileViewerFrame");
+                    frame.attr("src", `data:${res.contentType};base64,${res.base64}`);
+
+                    new bootstrap.Modal(document.getElementById("fileViewerModal")).show();
+                },
+                error: function () {
+                    alert("Unable to view document");
+                }
+            });
+        }
+    }
+
+
+
     function showVersions(fileUrl) {
         $.ajax({
             url: '/Home/GetFileVersions',
@@ -336,7 +515,98 @@
             }
         });
     }
+    function shareItem(itemUrl) {
+        $('#shareLink').val(window.location.origin + itemUrl);
+        $('#shareUser').val('');
 
+        new bootstrap.Modal(document.getElementById('shareModal')).show();
+
+        $('#shareModal').data('itemUrl', itemUrl);
+    }
+
+    function grantAccess() {
+        const user = $('#shareUser').val();
+        const role = $('#shareRole').val();
+        const itemUrl = $('#shareModal').data('itemUrl');
+
+        if (!user) {
+            Swal.fire('Error', 'Enter a user', 'error');
+            return;
+        }
+
+        $.ajax({
+            url: '/Home/GrantItemAccess',
+            type: 'POST',
+            data: {
+                itemUrl: itemUrl,
+                userLogin: user,
+                role: role
+            },
+            success: function (res) {
+                if (!res.success) {
+                    Swal.fire('Error', res.message, 'error');
+                    return;
+                }
+
+                Swal.fire('Shared', 'Access granted successfully', 'success');
+            },
+            error: function () {
+                Swal.fire('Error', 'Unable to share item', 'error');
+            }
+        });
+    }
+
+    function copyShareLink() {
+        const input = document.getElementById('shareLink');
+        input.select();
+        navigator.clipboard.writeText(input.value);
+    }
+    let userSearchTimer = null;
+
+    $('#shareUser').on('keyup', function () {
+        const query = $(this).val().trim();
+
+        clearTimeout(userSearchTimer);
+
+        if (query.length < 2) {
+            $('#userResults').addClass('d-none').empty();
+            return;
+        }
+
+        userSearchTimer = setTimeout(() => {
+            $.ajax({
+                url: '/Home/SearchUsers',
+                type: 'GET',
+                data: { term: query },
+                success: function (res) {
+                    const list = $('#userResults');
+                    list.empty();
+
+                    if (!res || res.length === 0) {
+                        list.addClass('d-none');
+                        return;
+                    }
+
+                    res.forEach(u => {
+                        list.append(`
+                        <li class="list-group-item list-group-item-action"
+                            onclick="selectUser('${u.Login}')">
+                            <strong>${u.DisplayName}</strong><br/>
+                            <small class="text-muted">${u.Login}</small>
+                        </li>
+                    `);
+                    });
+
+                    list.removeClass('d-none');
+                }
+            });
+        }, 300); // debounce
+    });
+
+    function selectUser(login) {
+        $('#shareUser').val(login);
+        $('#userResults').addClass('d-none').empty();
+    }
 
 </script>
 <script>
@@ -397,107 +667,107 @@
     }
 
     // ===================== CREATE FOLDER =====================
-   function createFolder() {
+    function createFolder() {
     const folderName = $('#folderName').val().trim();
     if (!folderName) {
         alert("Enter folder name");
         return;
     }
 
-    $.ajax({
-        url: '/Home/CreateFolder',
-        type: 'POST',
-        data: {
-            folderName: folderName,
-            libraryUrl: '@ViewBag.LibraryUrl'
-        },
-        success: function (res) {
-            if (!res.success) {
-                alert(res.message);
-                return;
+        $.ajax({
+            url: '/Home/CreateFolder',
+            type: 'POST',
+            data: {
+                folderName: folderName,
+                libraryUrl: '@ViewBag.LibraryUrl'
+            },
+            success: function (res) {
+                if (!res.success) {
+                    alert(res.message);
+                    return;
+                }
+                location.reload();
+            },
+            error: function (xhr) {
+                alert(xhr.responseText);
             }
-            location.reload();
-        },
-        error: function (xhr) {
-            alert(xhr.responseText);
-        }
-    });
+        });
     }
-  function deleteItem(itemUrl, isFolder) {
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "Do you want to delete this " + (isFolder ? "folder" : "file") + "?",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Proceed with AJAX delete
-            $.ajax({
-                url: '@Url.Action("DeleteItem","Home")',
-                type: 'POST',
-                data: { itemUrl: itemUrl, isFolder: isFolder },
-                success: function(res) {
-                    if (res.success) {
-                        Swal.fire(
-                            'Deleted!',
-                            (isFolder ? 'Folder' : 'File') + ' has been deleted.',
-                            'success'
-                        ).then(() => location.reload());
-                    } else {
-                        Swal.fire('Error', res.message, 'error');
+    function deleteItem(itemUrl, isFolder) {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "Do you want to delete this " + (isFolder ? "folder" : "file") + "?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Proceed with AJAX delete
+                $.ajax({
+                    url: '@Url.Action("DeleteItem","Home")',
+                    type: 'POST',
+                    data: { itemUrl: itemUrl, isFolder: isFolder },
+                    success: function(res) {
+                        if (res.success) {
+                            Swal.fire(
+                                'Deleted!',
+                                (isFolder ? 'Folder' : 'File') + ' has been deleted.',
+                                'success'
+                            ).then(() => location.reload());
+                        } else {
+                            Swal.fire('Error', res.message, 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        Swal.fire('Error', xhr.responseText, 'error');
                     }
-                },
-                error: function(xhr) {
-                    Swal.fire('Error', xhr.responseText, 'error');
-                }
-            });
-        }
-    });
-}
-    function renameItem(itemUrl, isFolder, currentName) {
-    Swal.fire({
-        title: 'Rename ' + (isFolder ? 'Folder' : 'File'),
-        input: 'text',
-        inputLabel: 'New Name',
-        inputValue: currentName,
-        showCancelButton: true,
-        confirmButtonText: 'Rename',
-        cancelButtonText: 'Cancel',
-        preConfirm: (newName) => {
-            if (!newName || newName.trim() === "") {
-                Swal.showValidationMessage('Name cannot be empty');
+                });
             }
-            return newName.trim();
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            $.ajax({
-                url: '@Url.Action("RenameItem", "Home")',
-                type: 'POST',
-                data: {
-                    itemUrl: itemUrl,
-                    isFolder: isFolder,
-                    newName: result.value
-                },
-                success: function(res) {
-                    if (res.success) {
-                        Swal.fire('Renamed!', (isFolder ? 'Folder' : 'File') + ' renamed successfully.', 'success')
-                            .then(() => location.reload());
-                    } else {
-                        Swal.fire('Error', res.message, 'error');
-                    }
-                },
-                error: function(xhr) {
-                    Swal.fire('Error', xhr.responseText, 'error');
+        });
+    }
+    function renameItem(itemUrl, isFolder, currentName) {
+        Swal.fire({
+            title: 'Rename ' + (isFolder ? 'Folder' : 'File'),
+            input: 'text',
+            inputLabel: 'New Name',
+            inputValue: currentName,
+            showCancelButton: true,
+            confirmButtonText: 'Rename',
+            cancelButtonText: 'Cancel',
+            preConfirm: (newName) => {
+                if (!newName || newName.trim() === "") {
+                    Swal.showValidationMessage('Name cannot be empty');
                 }
-            });
-        }
-    });
-}
+                return newName.trim();
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '@Url.Action("RenameItem", "Home")',
+                    type: 'POST',
+                    data: {
+                        itemUrl: itemUrl,
+                        isFolder: isFolder,
+                        newName: result.value
+                    },
+                    success: function(res) {
+                        if (res.success) {
+                            Swal.fire('Renamed!', (isFolder ? 'Folder' : 'File') + ' renamed successfully.', 'success')
+                                .then(() => location.reload());
+                        } else {
+                            Swal.fire('Error', res.message, 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        Swal.fire('Error', xhr.responseText, 'error');
+                    }
+                });
+            }
+        });
+    }
 
 </script>
 

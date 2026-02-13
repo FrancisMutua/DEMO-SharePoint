@@ -1,0 +1,80 @@
+﻿@model List<KCAU_SharePoint.Models.WorkflowInstance>
+
+<div class="container py-4">
+    <h4>Pending Approvals</h4>
+
+    @if (Model.Any())
+    {
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Document</th>
+                    <th>Submitted By</th>
+                    <th>Level</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.ItemName</td>
+                        <td>@item.SubmittedBy</td>
+                        <td>Level @item.CurrentLevel</td>
+                        <td>
+                            <button class="btn btn-success btn-sm" onclick="approve(@item.Id)">Approve</button>
+                            <button class="btn btn-danger btn-sm" onclick="reject(@item.Id)">Reject</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>No pending approvals.</p>
+    }
+</div>
+
+<script>
+function approve(id){
+    Swal.fire({
+        title:'Approve?',
+        input:'textarea',
+        inputLabel:'Comments (optional)',
+        showCancelButton:true,
+        confirmButtonText:'Approve'
+    }).then((result)=>{
+        if(result.isConfirmed){
+            $.post('/Workflow/Approve',{ instanceId:id, comments: result.value }, function(res){
+                if(res.success){
+                    Swal.fire('Approved!','','success').then(()=>location.reload());
+                } else {
+                    Swal.fire('Error',res.message,'error');
+                }
+            });
+        }
+    });
+}
+
+function reject(id){
+    Swal.fire({
+        title:'Reject?',
+        input:'textarea',
+        inputLabel:'Reason for rejection',
+        inputValidator: value => !value && 'Comments required',
+        showCancelButton:true,
+        confirmButtonText:'Reject'
+    }).then((result)=>{
+        if(result.isConfirmed){
+            $.post('/Workflow/Reject',{ instanceId:id, comments: result.value }, function(res){
+                if(res.success){
+                    Swal.fire('Rejected!','','success').then(()=>location.reload());
+                } else {
+                    Swal.fire('Error',res.message,'error');
+                }
+            });
+        }
+    });
+}
+</script>
