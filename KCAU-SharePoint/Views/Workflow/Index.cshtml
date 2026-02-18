@@ -188,6 +188,65 @@
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script>
+    let userSearchTimer;
+
+    $(document).on('keyup', '.approver-input', function () {
+
+        const input = $(this);
+        const query = input.val().trim();
+        const dropdown = input.siblings('.user-dropdown');
+
+        clearTimeout(userSearchTimer);
+
+        if (query.length < 2) {
+            dropdown.addClass('d-none').empty();
+            return;
+        }
+
+        userSearchTimer = setTimeout(() => {
+
+            $.ajax({
+                url: '/Home/SearchUsers',
+                type: 'GET',
+                data: { term: query },
+                success: function (res) {
+
+                    dropdown.empty();
+
+                    if (!res || res.length === 0) {
+                        dropdown.addClass('d-none');
+                        return;
+                    }
+
+                    res.forEach(u => {
+                        dropdown.append(`
+                        <li class="list-group-item list-group-item-action user-item"
+                            data-login="${u.Login}">
+                            <strong>${u.DisplayName}</strong><br/>
+                            <small class="text-muted">${u.Login}</small>
+                        </li>
+                    `);
+                    });
+
+                    dropdown.removeClass('d-none');
+                }
+            });
+
+        }, 300);
+    });
+
+
+    $(document).on('click', '.user-item', function () {
+
+        const login = $(this).data('login');
+        const dropdown = $(this).closest('.user-dropdown');
+        const input = dropdown.siblings('.approver-input');
+
+        input.val(login);
+        dropdown.addClass('d-none').empty();
+    });
+
+
     $(document).ready(function () {
         $('#approvalLevels').on('change', function () {
             let levels = parseInt($(this).val());
@@ -200,14 +259,23 @@
                     `<div class="card mb-2">
                     <div class="card-body">
                         <strong>Level ${i} Approvers</strong>
-                        <input type="text" class="form-control approver-input mt-2" data-level="${i}" placeholder="user1@domain.com, user2@domain.com"/>
+                       <div class="position-relative mt-2">
+    <input type="text"
+           class="form-control approver-input"
+           data-level="${i}"
+           placeholder="Search user..." />
+
+    <ul class="list-group position-absolute w-100 user-dropdown d-none"
+        style="z-index:1055;"></ul>
+</div>
+
                     </div>
                 </div>`
                 );
             }
         });
     });
-        function saveWorkflow() {
+    function saveWorkflow() {
 
         let workflowName = $('#workflowName').val().trim();
         let libraryUrl = $('#libraryUrl').val();
@@ -236,7 +304,6 @@
         }
 
         let stages = [];
-        let emailPattern = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
 
         $('.approver-input').each(function () {
 
@@ -249,6 +316,7 @@
                 return;
             }
 
+            // Split by comma (if you allow multiple)
             let users = rawValue
                 .split(',')
                 .map(x => x.trim())
@@ -257,18 +325,10 @@
             // Remove duplicates
             users = [...new Set(users)];
 
-            // Validate email format
-            for (let email of users) {
-                if (!emailPattern.test(email)) {
-                    $(this).addClass('is-invalid');
-                    isValid = false;
-                    break;
-                }
-            }
-
             if (users.length === 0) {
                 $(this).addClass('is-invalid');
                 isValid = false;
+                return;
             }
 
             stages.push({
@@ -276,6 +336,7 @@
                 Approvers: users
             });
         });
+
 
         if (!isValid) {
             Swal.fire('Error', 'Please fill all fields correctly. Each level must have valid email approvers.', 'error');

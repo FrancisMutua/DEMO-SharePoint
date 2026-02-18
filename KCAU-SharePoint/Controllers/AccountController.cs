@@ -15,13 +15,14 @@ namespace KCAU_SharePoint.Controllers
 		{
             helper = new Helper();
         }
-
-		public ActionResult Login()
+        [AllowAnonymous]
+        public ActionResult Login()
         {
             return View(new UserModel());
         }
 
         [HttpPost]
+        [AllowAnonymous]
         [ValidateAntiForgeryToken]
         public ActionResult Login(UserModel model)
         {

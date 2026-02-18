@@ -3,12 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web.Mvc;
 using KCAU_SharePoint.Models;
+using Microsoft.SharePoint.Client;
+using Microsoft.SharePoint.Client.WorkflowServices;
+using Newtonsoft.Json;
+using static KCAU_SharePoint.Models.Helper;
+using WorkflowInstance = KCAU_SharePoint.Models.WorkflowInstance;
 
+[SessionAuthorize]
 public class WorkflowController : Controller
 {
     private Helper helper;
-    private static List<WorkflowInstance> WorkflowInstances = new List<WorkflowInstance>();
-    private static List<WorkflowApprovalHistory> ApprovalHistories = new List<WorkflowApprovalHistory>();
 
     public WorkflowController()
     {
@@ -17,6 +21,8 @@ public class WorkflowController : Controller
 
     public ActionResult Index()
     {
+        var libraries = helper.GetDocumentLibraries();
+        ViewBag.Libraries = libraries;
         var workflows = helper.GetWorkflows();
 
         var vm = new WorkflowConfigVM
@@ -80,15 +86,17 @@ public class WorkflowController : Controller
     {
         try
         {
-            var workflow = helper.GetWorkflowForLibrary(helper.GetLibraryUrlFromItem(itemUrl));
+            var librayUrl= helper.GetLibraryUrlFromItem(itemUrl);
+            var workflow = helper.GetWorkflowForLibrary(librayUrl);
 
             if (workflow == null)
                 return Json(new { success = false, message = "No workflow configured." });
 
-            // Replace hard-coded user for demo; in real app, use User.Identity.Name
-            var instance = helper.CreateWorkflowInstance(itemUrl, itemName, User.Identity.Name);
+            string username = HttpContext.Session["Username"]?.ToString() ?? "UnknownUser";
 
-            return Json(new { success = true, workflowInstanceId = instance.Id });
+            helper.CreateWorkflowInstance(itemUrl, itemName, username);
+
+            return Json(new { success = true });
         }
         catch (Exception ex)
         {
@@ -100,14 +108,18 @@ public class WorkflowController : Controller
     // Dashboard for approvers
     public ActionResult MyApprovals()
     {
-        var user = User.Identity.Name;
+        var user = HttpContext.Session["Username"]?.ToString() ?? "UnknownUser";
         var pending = new List<WorkflowInstance>();
 
-        foreach (var instance in WorkflowInstances.Where(i => i.Status == "Pending"))
+        // Get all workflow instances with Status = "Pending"
+        var allPendingInstances = helper.GetWorkflowInstances()
+                                        .Where(i => i.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase))
+                                        .ToList();
+
+        foreach (var instance in allPendingInstances)
         {
-            var workflow = helper.GetWorkflows().FirstOrDefault(w => w.Id == instance.WorkflowId);
-            var stage = workflow?.Stages.FirstOrDefault(s => s.Level == instance.CurrentLevel);
-            if (stage != null && stage.Approvers.Contains(user, StringComparer.OrdinalIgnoreCase))
+            // Check if the logged-in user is an approver for this stage
+            if (instance.Approver != null && instance.Approver.Equals(user, StringComparison.OrdinalIgnoreCase))
             {
                 pending.Add(instance);
             }
@@ -116,42 +128,57 @@ public class WorkflowController : Controller
         return View(pending);
     }
 
+
     [HttpPost]
-    public JsonResult Approve(int instanceId, string comments = "")
+    public JsonResult Approve(int instanceId, string itemUrl, string comments = "")
     {
         try
         {
             var user = User.Identity.Name;
-            var instance = WorkflowInstances.FirstOrDefault(i => i.Id == instanceId);
-            if (instance == null) return Json(new { success = false, message = "Instance not found" });
 
-            var workflow = helper.GetWorkflows().FirstOrDefault(w => w.Id == instance.WorkflowId);
-            var stage = workflow.Stages.FirstOrDefault(s => s.Level == instance.CurrentLevel);
+            // Get all workflow instances
+            var allInstances = helper.GetWorkflowInstances();
 
-            if (!stage.Approvers.Contains(user, StringComparer.OrdinalIgnoreCase))
-                return Json(new { success = false, message = "Not authorized" });
+            // Find the current instance by ID
+            var instance = allInstances.FirstOrDefault(i => i.Id == instanceId.ToString());
+            if (instance == null)
+                return Json(new { success = false, message = "Workflow instance not found." });
 
-            // Log approval
-            ApprovalHistories.Add(new WorkflowApprovalHistory
+            // Find the pending instance for this user
+            var pendingInstance = allInstances
+                .FirstOrDefault(i => i.ItemUrl == instance.ItemUrl && i.Status == "Pending" && i.Approver == user);
+
+            if (pendingInstance == null)
+                return Json(new { success = false, message = "No pending approval found for this user on this document." });
+
+            // Mark current instance as Approved
+            pendingInstance.Status = "Approved";
+            pendingInstance.CompletedDate = DateTime.Now;
+            pendingInstance.Comments = comments;
+
+            
+            // Move next stage's first approver to Pending
+            string libraryUrl = helper.GetLibraryUrlFromItem(itemUrl);
+            var workflow = helper.GetWorkflowForLibrary(libraryUrl);
+
+            if (workflow != null)
             {
-                Id = ApprovalHistories.Count + 1,
-                WorkflowInstanceId = instance.Id,
-                Level = instance.CurrentLevel,
-                Approver = user,
-                Action = "Approved",
-                Comments = comments,
-                ActionDate = DateTime.Now
-            });
+                int nextLevel = int.Parse(pendingInstance.CurrentLevel) + 1;
+                var nextStage = workflow.Stages.FirstOrDefault(s => s.Level == nextLevel);
 
-            // Move to next level
-            if (instance.CurrentLevel < instance.TotalLevels)
-            {
-                instance.CurrentLevel++;
-            }
-            else
-            {
-                instance.Status = "Approved";
-                instance.CompletedDate = DateTime.Now;
+                if (nextStage != null && nextStage.Approvers.Any())
+                {
+                    var nextInstance = allInstances.FirstOrDefault(i =>
+                        i.ItemUrl == pendingInstance.ItemUrl &&
+                        i.CurrentLevel == nextLevel.ToString() &&
+                        i.Approver == nextStage.Approvers[0] &&
+                        i.Status == "Created");
+
+                    if (nextInstance != null)
+                    {
+                        nextInstance.Status = "Pending";
+                    }
+                }
             }
 
             return Json(new { success = true });
@@ -161,6 +188,8 @@ public class WorkflowController : Controller
             return Json(new { success = false, message = ex.Message });
         }
     }
+
+
 
     [HttpPost]
     public JsonResult Reject(int instanceId, string comments = "")
@@ -168,29 +197,36 @@ public class WorkflowController : Controller
         try
         {
             var user = User.Identity.Name;
-            var instance = WorkflowInstances.FirstOrDefault(i => i.Id == instanceId);
-            if (instance == null) return Json(new { success = false, message = "Instance not found" });
 
-            var workflow = helper.GetWorkflows().FirstOrDefault(w => w.Id == instance.WorkflowId);
-            var stage = workflow.Stages.FirstOrDefault(s => s.Level == instance.CurrentLevel);
+            // Get the workflow instance
+            var instance = helper.GetWorkflowInstances().FirstOrDefault(i => i.Id.Equals( instanceId));
+            if (instance == null)
+                return Json(new { success = false, message = "Instance not found" });
 
+            // Get the workflow configuration
+            var workflow = helper.GetWorkflows().FirstOrDefault(w => w.Id.Equals( instance.WorkflowId));
+            if (workflow == null)
+                return Json(new { success = false, message = "Workflow configuration not found" });
+
+            // Get current stage
+            var stage = workflow.Stages.FirstOrDefault(s => s.Level .Equals(instance.CurrentLevel));
+            if (stage == null)
+                return Json(new { success = false, message = "Current stage not found" });
+
+            // Check if user is authorized to reject
             if (!stage.Approvers.Contains(user, StringComparer.OrdinalIgnoreCase))
-                return Json(new { success = false, message = "Not authorized" });
+                return Json(new { success = false, message = "Not authorized to reject this instance" });
 
-            // Log rejection
-            ApprovalHistories.Add(new WorkflowApprovalHistory
+            // Update SharePoint list item (if using CSOM)
+            using (var ctx = helper.GetContext())
             {
-                Id = ApprovalHistories.Count + 1,
-                WorkflowInstanceId = instance.Id,
-                Level = instance.CurrentLevel,
-                Approver = user,
-                Action = "Rejected",
-                Comments = comments,
-                ActionDate = DateTime.Now
-            });
+                var list = ctx.Web.Lists.GetByTitle("ApprovalInstances");
+                var spItem = list.GetItemById(instance.Id);
 
-            instance.Status = "Rejected";
-            instance.CompletedDate = DateTime.Now;
+                spItem["Status"] = "Rejected";
+                spItem["CompletedDate"] = DateTime.Now;
+                ctx.ExecuteQuery();
+            }
 
             return Json(new { success = true });
         }
@@ -199,5 +235,6 @@ public class WorkflowController : Controller
             return Json(new { success = false, message = ex.Message });
         }
     }
+
 
 }

@@ -16,6 +16,7 @@ using Microsoft.SharePoint.Client.Utilities;
 
 namespace KCAU_SharePoint.Controllers
 {
+    [SessionAuthorize]
     public class HomeController : Controller
     {
 
@@ -165,9 +166,9 @@ namespace KCAU_SharePoint.Controllers
                     return Json(new { success = false, message = "No workflow configured." });
 
                 // Replace hard-coded user for demo; in real app, use User.Identity.Name
-                var instance = helper.CreateWorkflowInstance(itemUrl, itemName, User.Identity.Name);
+                helper.CreateWorkflowInstance(itemUrl, itemName, User.Identity.Name);
 
-                return Json(new { success = true, workflowInstanceId = instance.Id });
+                return Json(new { success = true});
             }
             catch (Exception ex)
             {
@@ -584,6 +585,7 @@ namespace KCAU_SharePoint.Controllers
 
                     // Query AD in batch
                     var adEmails = GetEmailsFromAD(adLoginNames);
+
 
                     // Merge SharePoint users with AD emails
                     foreach (var user in users)

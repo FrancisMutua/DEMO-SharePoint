@@ -4,6 +4,7 @@ using System.Configuration;
 using System.DirectoryServices.AccountManagement;
 using System.Linq;
 using System.Net;
+using System.Runtime.Remoting.Messaging;
 using System.Web;
 using Microsoft.SharePoint.Client;
 using Microsoft.SharePoint.Client.WorkflowServices;
@@ -33,10 +34,6 @@ namespace KCAU_SharePoint.Models
         private readonly string username;
         private readonly string password;
         private readonly string domain;
-        // Use the same static storage as your controller/demo
-        private static List<WorkflowModel> _workflows = new List<WorkflowModel>();
-        private static List<WorkflowInstance> _workflowInstances = new List<WorkflowInstance>();
-        private static List<SPItem> _items = new List<SPItem>();
 
         public Helper()
         {
@@ -45,6 +42,7 @@ namespace KCAU_SharePoint.Models
             password = ConfigurationManager.AppSettings["password"];
             domain = ConfigurationManager.AppSettings["domain"];
         }
+        public string getDomain => domain;
 
         public ClientContext GetContext(string username = null, string password = null)
         {
@@ -126,6 +124,7 @@ namespace KCAU_SharePoint.Models
             </Query>
         </View>";
 
+
                 var items = list.GetItems(new CamlQuery { ViewXml = caml });
 
                 ctx.Load(items, i => i.Include(item => item["Approvers"]));
@@ -164,70 +163,149 @@ namespace KCAU_SharePoint.Models
             return emails;
         }
 
-        public WorkflowModel GetWorkflowForLibrary(string libraryUrl)
+        public WorkflowConfigVM GetWorkflowForLibrary(string libraryUrl)
         {
-            if (string.IsNullOrEmpty(libraryUrl))
+            if (string.IsNullOrWhiteSpace(libraryUrl))
                 return null;
 
-            // Assume only one workflow per library for simplicity
-            return _workflows.FirstOrDefault(w => w.LibraryUrl.Equals(libraryUrl, StringComparison.OrdinalIgnoreCase));
+            var normalizedLibraryUrl = NormalizeUrl(libraryUrl);
+            var workflows = GetWorkflows();
+            return workflows.FirstOrDefault(w =>
+                NormalizeUrl(w.LibraryUrl) == normalizedLibraryUrl);
         }
+
+        private string NormalizeUrl(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                return string.Empty;
+
+            return Uri.UnescapeDataString(url)
+                      .Trim()
+                      .ToLowerInvariant();
+        }
+
+
+
         public string GetLibraryUrlFromItem(string itemUrl)
         {
-            if (string.IsNullOrEmpty(itemUrl))
-                throw new ArgumentException("Item URL cannot be empty");
+            if (string.IsNullOrWhiteSpace(itemUrl))
+                return null;
 
-            // Example: "/Documents/Finance/Doc1.pdf" -> "/Documents"
-            var parts = itemUrl.Trim('/').Split('/');
-            if (parts.Length == 0)
-                throw new Exception("Invalid item URL format");
+            using (ClientContext context = GetContext())
+            {
+                // Ensure proper encoding for SharePoint
+                var encodedUrl = Uri.EscapeUriString(itemUrl);
 
-            return "/" + parts[0];
+                var file = context.Web.GetFileByServerRelativeUrl(encodedUrl);
+                context.Load(file,
+                    f => f.ListItemAllFields,
+                    f => f.ListItemAllFields.ParentList.RootFolder.ServerRelativeUrl);
+
+                context.ExecuteQuery();
+
+                return Uri.UnescapeDataString(
+                    file.ListItemAllFields.ParentList.RootFolder.ServerRelativeUrl);
+            }
         }
 
-        // Create a workflow instance when a document is submitted for approval
-        public WorkflowInstance CreateWorkflowInstance(string itemUrl, string itemName, string submittedBy)
+        public List<WorkflowInstance> GetWorkflowInstances()
         {
-            // Dynamically get library from the item URL
+            var instances = new List<WorkflowInstance>();
+
+            using (var context = GetContext())
+            {
+                var list = context.Web.Lists.GetByTitle("ApprovalInstances");
+                var query = CamlQuery.CreateAllItemsQuery();
+                var items = list.GetItems(query);
+
+                context.Load(items);
+                context.ExecuteQuery();
+
+                foreach (var item in items)
+                {
+                    var instance = new WorkflowInstance
+                    {
+                        Id = item.Id.ToString(),
+                        ItemName = item["Title"]?.ToString() ?? "",
+                        ItemUrl = item["ItemUrl"]?.ToString() ?? "",
+                        WorkflowId = item["WorkflowId"]?.ToString() ?? "",
+                        CurrentLevel = item["Stage"]?.ToString() ?? "1",
+                        Status = item["Status"]?.ToString() ?? "",
+                        SubmittedBy = item["SubmittedBy"]?.ToString() ?? "",
+                        TotalLevels = item["TotalLevels"]?.ToString() ?? "1",
+                        Approver = item["Approver"]?.ToString() ?? ""
+                    };
+
+                    
+                    instances.Add(instance);
+                }
+            }
+
+            return instances;
+        }
+
+
+        // Create a workflow instance when a document is submitted for approval
+        public void CreateWorkflowInstance(string itemUrl, string itemName, string submittedBy)
+        {
             string libraryUrl = GetLibraryUrlFromItem(itemUrl);
 
             var workflow = GetWorkflowForLibrary(libraryUrl);
             if (workflow == null)
                 throw new Exception("No workflow configured for this library.");
 
-            var instance = new WorkflowInstance
+            using (ClientContext context = GetContext())
             {
-                Id = _workflowInstances.Count + 1,
-                ItemUrl = itemUrl,
-                ItemName = itemName,
-                WorkflowId = workflow.Id,
-                CurrentLevel = 1,
-                Status = "Pending",
-                SubmittedBy = submittedBy,
-                SubmittedDate = DateTime.Now,
-                TotalLevels = workflow.Levels
-            };
+                var list = context.Web.Lists.GetByTitle("ApprovalInstances");
 
-            _workflowInstances.Add(instance);
-            return instance;
-        }
+                foreach (var stage in workflow.Stages)
+                {
+                    foreach (var approver in stage.Approvers)
+                    {
+                        var itemCreateInfo = new ListItemCreationInformation();
+                        var listItem = list.AddItem(itemCreateInfo);
 
-        // Optional: Helper to get instances for a user
-        public List<WorkflowInstance> GetPendingApprovalsForUser(string userName)
-        {
-            var pending = new List<WorkflowInstance>();
+                        listItem["Title"] = itemName;
+                        listItem["ItemUrl"] = itemUrl;
+                        listItem["WorkflowId"] = workflow.Id;
+                        listItem["Stage"] = stage.Level;
+                        listItem["Approver"] = approver; // Assign approver for this level
+                        listItem["Status"] = stage.Level == 1 ? "Pending" : "Created";
+                        listItem["SubmittedBy"] = submittedBy;
+                        listItem["TotalLevels"] = workflow.Levels;
 
-            foreach (var instance in _workflowInstances.Where(i => i.Status == "Pending"))
-            {
-                var workflow = _workflows.FirstOrDefault(w => w.Id == instance.WorkflowId);
-                var stage = workflow?.Stages.FirstOrDefault(s => s.Level == instance.CurrentLevel);
+                        listItem.Update();
+                    }
+                }
 
-                if (stage != null && stage.Approvers.Contains(userName, StringComparer.OrdinalIgnoreCase))
-                    pending.Add(instance);
+                context.ExecuteQuery();
             }
-
-            return pending;
         }
+
+        // Helper class to deserialize stages
+        public class WorkflowStage
+        {
+            public int Level { get; set; }
+            public List<string> Approvers { get; set; }
+        }
+
+
+        /* // Optional: Helper to get instances for a user
+         public List<WorkflowInstance> GetPendingApprovalsForUser(string userName)
+         {
+             var pending = new List<WorkflowInstance>();
+
+             foreach (var instance in _workflowInstances.Where(i => i.Status == "Pending"))
+             {
+                 var workflow = _workflows.FirstOrDefault(w => w.Id == instance.WorkflowId);
+                 var stage = workflow?.Stages.FirstOrDefault(s => s.Level == instance.CurrentLevel);
+
+                 if (stage != null && stage.Approvers.Contains(userName, StringComparer.OrdinalIgnoreCase))
+                     pending.Add(instance);
+             }
+
+             return pending;
+         }*/
 
         // Get all workflows
         public List<WorkflowConfigVM> GetWorkflows()
@@ -262,7 +340,6 @@ namespace KCAU_SharePoint.Models
                     });
                 }
             }
-
             return result;
         }
 
@@ -313,6 +390,8 @@ namespace KCAU_SharePoint.Models
                 secure.AppendChar(c);
             return secure;
         }
+
+      
     }
 
 }

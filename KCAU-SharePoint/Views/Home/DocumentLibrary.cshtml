@@ -441,8 +441,8 @@
                     // Show modal
                     new bootstrap.Modal(document.getElementById("fileViewerModal")).show();
                 },
-                error: function () {
-                    alert("Unable to view document");
+                error: function (xhr, status, error) {
+                    Swal.fire("", "error " + xhr.responseText, "error");
                 }
             });
         } else {
@@ -463,8 +463,8 @@
 
                     new bootstrap.Modal(document.getElementById("fileViewerModal")).show();
                 },
-                error: function () {
-                    alert("Unable to view document");
+                error: function (xhr) {
+                    Swal.fire("", "error " + xhr.responseText, "error");
                 }
             });
         }
@@ -510,8 +510,8 @@
                 var modal = new bootstrap.Modal(document.getElementById('versionsModal'));
                 modal.show();
             },
-            error: function () {
-                alert("Unable to fetch versions");
+            error: function (xhr) {
+                Swal.fire("", "error " + xhr.responseText, "error");
             }
         });
     }
@@ -660,8 +660,8 @@
                 }
                 location.reload();
             },
-            error: function () {
-                alert("Error uploading file");
+            error: function (xhr) {
+                Swal.fire("", "error " + xhr.responseText, "error");
             }
         });
     }
@@ -689,7 +689,7 @@
                 location.reload();
             },
             error: function (xhr) {
-                alert(xhr.responseText);
+                Swal.fire("", "error " + xhr.responseText, "error");
             }
         });
     }

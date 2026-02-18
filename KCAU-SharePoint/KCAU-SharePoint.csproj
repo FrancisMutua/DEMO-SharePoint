@@ -197,8 +197,8 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
+    <Compile Include="Models\SessionAuthorizeAttribute.cs" />
     <Compile Include="Models\WorkflowInstance.cs" />
-    <Compile Include="Models\WorkflowApprovalHistory.cs" />
     <Compile Include="Models\WorkflowConfigVM.cs" />
     <Compile Include="Models\SPLibrary.cs" />
     <Compile Include="Models\WorkflowModel.cs" />
@@ -212,8 +212,8 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="assets\imgs\Embu-Logo.png" />
     <Content Include="assets\imgs\KCAU-logo-partial-white.png" />
+    <Content Include="assets\imgs\KCAU-logo.ico" />
     <Content Include="assets\imgs\KCAU-logo.png" />
     <Content Include="Content\bootstrap-grid.css" />
     <Content Include="Content\bootstrap-grid.min.css" />
@@ -262,12 +262,12 @@
     <Content Include="Views\Web.config" />
     <Content Include="Views\_ViewStart.cshtml" />
     <Content Include="Views\Shared\Error.cshtml" />
-    <Content Include="Views\Shared\_Layout.cshtml" />
     <Content Include="Views\Home\Index.cshtml" />
     <Content Include="Views\Account\Login.cshtml" />
     <Content Include="Views\Home\DocumentLibrary.cshtml" />
     <Content Include="Views\Workflow\Index.cshtml" />
     <Content Include="Views\Workflow\MyApprovals.cshtml" />
+    <Content Include="Views\Shared\_Layout.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
