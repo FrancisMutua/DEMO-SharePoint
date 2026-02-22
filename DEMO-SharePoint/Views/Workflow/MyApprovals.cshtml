@@ -1,0 +1,316 @@
+﻿@model List<DEMO_SharePoint.Models.WorkflowInstance>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0 fw-bold">
+        <i class="bi bi-check2-square me-2 text-primary"></i>
+        Approval Dashboard
+    </h5>
+    @* <span class="badge bg-primary">
+            @Model?.Count() Pending Items
+        </span>*@
+</div>
+
+@if (Model != null && Model.Any())
+{
+    <div class="table-responsive">
+        <table class="table align-middle table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Document</th>
+                    <th>Submitted By</th>
+                    <th>Status</th>
+                    <th>Comments</th>
+                    <th>Level</th>
+                    <th class="text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">@item.ItemName</div>
+                        </td>
+
+                        <td>@item.SubmittedBy</td>
+
+                        <td>
+                            @if (item.Status == "Pending")
+                            {
+                                <span class="badge bg-warning text-dark badge-status">
+                                    <i class="bi bi-hourglass-split me-1"></i> Pending
+                                </span>
+                            }
+                            else if (item.Status == "Approved")
+                            {
+                                <span class="badge bg-success badge-status">
+                                    <i class="bi bi-check-circle me-1"></i> Approved
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary badge-status">
+                                    @item.Status
+                                </span>
+                            }
+                        </td>
+
+                        <td>@item.Comments</td>
+
+                        <td>
+                            <span class="badge bg-info text-dark badge-status">
+                                Level @item.CurrentLevel
+                            </span>
+                        </td>
+
+                        <td class="text-center">
+                            @if (item.Status == "Pending")
+                            {
+                                <button class="btn btn-outline-primary btn-sm btn-action me-1"
+                                        onclick="openViewer('@item.ItemUrl')">
+                                    <i class="bi bi-eye"></i> View
+                                </button>
+
+                                <button class="btn btn-success btn-sm btn-action me-1"
+                                        onclick="approve('@item.Id','@item.ItemUrl')">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+
+                                <button class="btn btn-danger btn-sm btn-action"
+                                        onclick="reject('@item.Id')">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="text-center py-5">
+        <i class="bi bi-inbox display-6 text-muted"></i>
+        <p class="text-muted mt-3 mb-0">No pending approvals</p>
+    </div>
+}
+
+
+
+
+<!-- ====== DOCUMENT VIEWER MODAL ====== -->
+<div class="modal fade" id="fileViewerModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Document Viewer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0" style="height:75vh;">
+                <iframe id="fileViewerFrame" src="" style="width:100%; height:100%; border:none;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script>
+    // ===== VIEWER FUNCTION =====
+    function openViewer(fileUrl) {
+
+        const restrictedPath = "/Legal Services Departments/DEMO POLICIES";
+        const isRestricted = fileUrl && fileUrl.includes(restrictedPath);
+
+        const modalElement = document.getElementById("fileViewerModal");
+        const modal = new bootstrap.Modal(modalElement);
+        const modalBody = $('#fileViewerModal .modal-body');
+
+        // Loading spinner
+        modalBody.html(`
+            <div style="text-align:center;padding:50px;">
+                <div class="spinner-border" role="status"></div>
+                <p>Loading...</p>
+            </div>
+        `);
+
+        modal.show();
+
+        $.ajax({
+            url: '/Home/ViewDocument',
+            type: 'POST',
+            data: JSON.stringify({ fileUrl: fileUrl }),
+            contentType: 'application/json',
+            xhrFields: { responseType: 'blob' },
+            success: async function (blob) {
+
+                if (!blob || blob.size === 0) {
+                    Swal.fire('Error', 'Empty file received', 'error');
+                    modal.hide();
+                    return;
+                }
+
+                const fileURL = URL.createObjectURL(blob);
+
+                // Clean up blob when modal closes
+                modalElement.addEventListener('hidden.bs.modal', function () {
+                    URL.revokeObjectURL(fileURL);
+                }, { once: true });
+
+                if (isRestricted) {
+
+                    modalBody.html(`
+                        <div id="pdfViewerContainer"
+                             style="width:100%; height:80vh; overflow:auto; position:relative;">
+                        </div>
+                    `);
+
+                    const container = document.getElementById('pdfViewerContainer');
+
+                    pdfjsLib.GlobalWorkerOptions.workerSrc =
+                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+                    try {
+                        const pdf = await pdfjsLib.getDocument(fileURL).promise;
+
+                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+
+                            const page = await pdf.getPage(pageNum);
+
+                            const canvas = document.createElement('canvas');
+                            canvas.style.display = "block";
+                            canvas.style.margin = "10px auto";
+
+                            const viewport = page.getViewport({ scale: 1.2 });
+                            canvas.height = viewport.height;
+                            canvas.width = viewport.width;
+
+                            container.appendChild(canvas);
+
+                            const context = canvas.getContext('2d');
+                            await page.render({
+                                canvasContext: context,
+                                viewport: viewport
+                            }).promise;
+                        }
+
+                    } catch (err) {
+                        Swal.fire('Error', 'Failed to render PDF', 'error');
+                        modal.hide();
+                    }
+
+                } else {
+
+                    modalBody.html(`
+                        <iframe id="fileViewerFrame"
+                                style="width:100%;height:80vh;border:none;"
+                                sandbox="allow-same-origin allow-scripts">
+                        </iframe>
+                    `);
+
+                    $("#fileViewerFrame").attr("src", fileURL);
+                }
+            },
+            error: function (xhr) {
+                Swal.fire('Error',
+                    xhr.responseText || 'Server error occurred',
+                    'error');
+                modal.hide();
+            }
+        });
+    }
+
+
+    // ===== APPROVE FUNCTION =====
+    function approve(workflowInstanceId, itemUrl) {
+
+        Swal.fire({
+            title: 'Approve?',
+            input: 'textarea',
+            inputLabel: 'Comments (optional)',
+            showCancelButton: true,
+            confirmButtonText: 'Approve'
+        }).then(result => {
+
+            if (!result.isConfirmed) return;
+
+            $.ajax({
+                url: '/Workflow/Approve',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    instanceId: workflowInstanceId,
+                    itemUrl: itemUrl,
+                    comments: result.value || ''
+                }),
+                success: function (res) {
+
+                    if (!res || !res.success) {
+                        Swal.fire('Error',
+                            res?.message || 'Approval failed',
+                            'error');
+                        return;
+                    }
+
+                    Swal.fire('Approved!', '', 'success')
+                        .then(() => location.reload());
+                },
+                error: function (xhr) {
+                    Swal.fire('Error',
+                        xhr.responseText || 'Server error occurred',
+                        'error');
+                }
+            });
+        });
+    }
+
+
+    // ===== REJECT FUNCTION =====
+    function reject(id) {
+
+        Swal.fire({
+            title: 'Reject?',
+            input: 'textarea',
+            inputLabel: 'Reason for rejection',
+            inputValidator: value => !value && 'Comments required',
+            showCancelButton: true,
+            confirmButtonText: 'Reject'
+        }).then(result => {
+
+            if (!result.isConfirmed) return;
+
+            $.ajax({
+                url: '/Workflow/Reject',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    instanceId: id,
+                    comments: result.value
+                }),
+                success: function (res) {
+
+                    if (!res || !res.success) {
+                        Swal.fire('Error',
+                            res?.message || 'Rejection failed',
+                            'error');
+                        return;
+                    }
+
+                    Swal.fire('Rejected!', '', 'success')
+                        .then(() => location.reload());
+                },
+                error: function (xhr) {
+                    Swal.fire('Error',
+                        xhr.responseText || 'Server error occurred',
+                        'error');
+                }
+            });
+        });
+    }
+</script>
+
+
