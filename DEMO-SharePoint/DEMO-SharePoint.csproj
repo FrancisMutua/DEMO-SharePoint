@@ -193,6 +193,7 @@
     <Compile Include="App_Start\RouteConfig.cs" />
     <Compile Include="Controllers\AccountController.cs" />
     <Compile Include="Controllers\HomeController.cs" />
+    <Compile Include="Controllers\MetaFieldDto.cs" />
     <Compile Include="Controllers\ScanController.cs" />
     <Compile Include="Controllers\WorkflowController.cs" />
     <Compile Include="Global.asax.cs">
@@ -200,6 +201,7 @@
     </Compile>
     <Compile Include="Models\CreateWorkflowRequest.cs" />
     <Compile Include="Models\DashboardViewModel.cs" />
+    <Compile Include="Models\LibraryDtos.cs" />
     <Compile Include="Models\MetadataField.cs" />
     <Compile Include="Models\ScanProfile.cs" />
     <Compile Include="Models\SessionAuthorizeAttribute.cs" />
@@ -238,6 +240,8 @@
     <Compile Include="Services\Models\WorkflowSuggestion.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="assets\imgs\appkings-logo.ico" />
+    <Content Include="assets\imgs\appkings-logo.png" />
     <Content Include="assets\imgs\KCAU-logo-partial-white.png" />
     <Content Include="assets\imgs\KCAU-logo.ico" />
     <Content Include="assets\imgs\KCAU-logo.png" />
@@ -294,6 +298,8 @@
     <Content Include="Views\Workflow\Index.cshtml" />
     <Content Include="Views\Workflow\MyApprovals.cshtml" />
     <Content Include="Views\Shared\_Layout.cshtml" />
+    <Content Include="Views\Scan\Index.cshtml" />
+    <Content Include="Views\Workflow\SubmittedApprovals.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />

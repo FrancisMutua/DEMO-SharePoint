@@ -1,81 +1,810 @@
 ﻿@model DEMO_SharePoint.Models.UserModel
-
 @{
     ViewBag.Title = "Sign In";
     Layout = null;
 }
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>DEMO EDMs | Sign In</title>
+    <title>AppKings DMS — Sign In</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="~/Content/theme.css" rel="stylesheet" />
-    <link rel="icon" type="image/x-icon" href="~/assets/imgs/DEMO-logo.ico" asp-append-version="true" />
+    <link rel="icon" type="image/x-icon" href="~/assets/imgs/appkings-logo.ico" asp-append-version="true" />
+
+    <style>
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       APPKINGS LOGIN — DESIGN SYSTEM TOKENS
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    :root {
+        --ak-red:        #E84F26;
+        --ak-red-dark:   #C73E1A;
+        --ak-red-glow:   rgba(232,79,38,.28);
+        --ak-yellow:     #FEB900;
+        --ak-orange:     #F05028;
+        --ak-green:      #83BB00;
+        --ak-blue:       #00A7E4;
+        --ak-blue-dark:  #0089C0;
+        --ak-navy:       #1C2033;
+        --ak-navy-mid:   #242840;
+        --ak-navy-deep:  #161929;
+
+        --border:        #E8EAF0;
+        --text-h:        #111827;
+        --text-b:        #374151;
+        --text-s:        #6B7280;
+        --text-m:        #9CA3AF;
+        --surface:       #FFFFFF;
+        --surface-2:     #F7F8FB;
+
+        --font:     'Plus Jakarta Sans', system-ui, sans-serif;
+        --mono:     'JetBrains Mono', monospace;
+        --r:        12px;
+        --r-sm:     8px;
+        --t:        0.18s ease;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: var(--font);
+        background: var(--ak-navy-deep);
+        min-height: 100vh;
+        display: flex;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       SPLIT LAYOUT
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    .login-wrap {
+        display: flex;
+        width: 100%;
+        min-height: 100vh;
+    }
+
+    /* ─── LEFT PANEL — Brand ─── */
+    .brand-panel {
+        flex: 1.1;
+        background: var(--ak-navy);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 60px 56px;
+    }
+
+    /* Animated geometric shapes using logo colors */
+    .brand-panel::before {
+        content: '';
+        position: absolute;
+        top: -120px; right: -120px;
+        width: 520px; height: 520px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 60% 40%,
+            rgba(232,79,38,.18) 0%,
+            rgba(240,80,40,.08) 40%,
+            transparent 70%
+        );
+        animation: pulse 6s ease-in-out infinite alternate;
+    }
+    .brand-panel::after {
+        content: '';
+        position: absolute;
+        bottom: -80px; left: -60px;
+        width: 380px; height: 380px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 40% 60%,
+            rgba(0,167,228,.15) 0%,
+            rgba(131,187,0,.07) 50%,
+            transparent 70%
+        );
+        animation: pulse 8s ease-in-out infinite alternate-reverse;
+    }
+    @@keyframes pulse {
+        from { transform: scale(1) translate(0,0); }
+        to   { transform: scale(1.12) translate(12px,-8px); }
+    }
+
+    /* Top color bar — the solutions strip */
+    .brand-colorbar {
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+        background: linear-gradient(90deg,
+            var(--ak-yellow)  0%   25%,
+            var(--ak-orange) 25%   50%,
+            var(--ak-green)  50%   75%,
+            var(--ak-blue)   75%  100%
+        );
+    }
+
+    /* Floating geometric accent shapes */
+    .geo {
+        position: absolute;
+        border-radius: 4px;
+        opacity: .06;
+    }
+    .geo-1 {
+        width: 180px; height: 180px;
+        background: var(--ak-red);
+        top: 15%; right: 10%;
+        transform: rotate(22deg);
+        animation: floatA 9s ease-in-out infinite alternate;
+    }
+    .geo-2 {
+        width: 90px; height: 90px;
+        background: var(--ak-yellow);
+        bottom: 28%; right: 22%;
+        transform: rotate(-14deg);
+        animation: floatB 7s ease-in-out infinite alternate;
+        opacity: .08;
+    }
+    .geo-3 {
+        width: 55px; height: 55px;
+        background: var(--ak-blue);
+        top: 58%; left: 12%;
+        transform: rotate(8deg);
+        animation: floatA 11s ease-in-out infinite alternate-reverse;
+        opacity: .1;
+    }
+    .geo-4 {
+        width: 130px; height: 130px;
+        border: 2px solid var(--ak-green);
+        border-radius: 50%;
+        bottom: 12%; right: 8%;
+        animation: floatB 10s ease-in-out infinite alternate;
+        opacity: .08;
+    }
+    @@keyframes floatA {
+        from { transform: rotate(22deg) translate(0, 0); }
+        to   { transform: rotate(28deg) translate(-10px, 15px); }
+    }
+    @@keyframes floatB {
+        from { transform: rotate(-14deg) translate(0, 0); }
+        to   { transform: rotate(-8deg) translate(8px, -12px); }
+    }
+
+    /* Grid dots pattern */
+    .brand-grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(rgba(255,255,255,.04) 1px, transparent 1px);
+        background-size: 28px 28px;
+        pointer-events: none;
+    }
+
+    /* Brand content */
+    .brand-content {
+        position: relative;
+        z-index: 2;
+    }
+
+    .brand-logo-wrap {
+        margin-bottom: 44px;
+    }
+    .brand-logo-wrap img {
+        height: 52px;
+        object-fit: contain;
+    }
+
+    .brand-headline {
+        font-size: 2.4rem;
+        font-weight: 800;
+        line-height: 1.18;
+        letter-spacing: -.035em;
+        color: #fff;
+        margin-bottom: 16px;
+    }
+    .brand-headline .hl-red    { color: var(--ak-red); }
+    .brand-headline .hl-yellow { color: var(--ak-yellow); }
+
+    .brand-tagline {
+        font-size: .9rem;
+        color: rgba(255,255,255,.5);
+        line-height: 1.65;
+        max-width: 340px;
+        font-weight: 400;
+    }
+
+    /* Feature pills */
+    .brand-pills {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 40px;
+    }
+    .brand-pill {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        opacity: 0;
+        animation: slideIn .5s ease forwards;
+    }
+    .brand-pill:nth-child(1) { animation-delay: .1s; }
+    .brand-pill:nth-child(2) { animation-delay: .2s; }
+    .brand-pill:nth-child(3) { animation-delay: .3s; }
+    .brand-pill:nth-child(4) { animation-delay: .4s; }
+    @@keyframes slideIn {
+        from { opacity: 0; transform: translateX(-14px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+    .pill-icon {
+        width: 32px; height: 32px;
+        border-radius: var(--r-sm);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .8rem;
+        flex-shrink: 0;
+    }
+    .pill-icon.red    { background: rgba(232,79,38,.18);  color: var(--ak-red); }
+    .pill-icon.yellow { background: rgba(254,185,0,.18);  color: var(--ak-yellow); }
+    .pill-icon.green  { background: rgba(131,187,0,.18);  color: var(--ak-green); }
+    .pill-icon.blue   { background: rgba(0,167,228,.18);  color: var(--ak-blue); }
+    .pill-text {
+        font-size: .78rem;
+        color: rgba(255,255,255,.55);
+        font-weight: 500;
+    }
+
+    /* Bottom version badge */
+    .brand-footer {
+        position: absolute;
+        bottom: 24px; left: 56px;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .brand-footer-text {
+        font-size: .65rem;
+        font-weight: 600;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,.2);
+    }
+    .brand-footer-dot {
+        width: 4px; height: 4px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.15);
+    }
+
+    /* ─── RIGHT PANEL — Form ─── */
+    .form-panel {
+        flex: 1;
+        background: var(--surface-2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 36px;
+        position: relative;
+    }
+
+    /* Subtle top stripe mirroring colorbar */
+    .form-panel::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg,
+            var(--ak-red)    0%   50%,
+            var(--ak-yellow) 50% 100%
+        );
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 400px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        box-shadow:
+            0 4px 24px rgba(0,0,0,.06),
+            0 1px 4px rgba(0,0,0,.04);
+        overflow: hidden;
+        animation: cardReveal .5s cubic-bezier(.22,1,.36,1) both;
+        animation-delay: .15s;
+        opacity: 0;
+    }
+    @@keyframes cardReveal {
+        from { opacity: 0; transform: translateY(20px) scale(.98); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Card top accent */
+    .card-accent {
+        height: 5px;
+        background: linear-gradient(90deg,
+            var(--ak-red) 0%,
+            var(--ak-orange) 50%,
+            var(--ak-yellow) 100%
+        );
+    }
+
+    .card-body-inner {
+        padding: 36px 32px 32px;
+    }
+
+    /* Card header */
+    .card-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 28px;
+    }
+    .card-logo-icon {
+        width: 42px; height: 42px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--ak-red), var(--ak-orange));
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 1.05rem;
+        box-shadow: 0 4px 14px rgba(232,79,38,.3);
+        flex-shrink: 0;
+    }
+    .card-logo-text {}
+    .card-logo-name {
+        font-size: 1.08rem;
+        font-weight: 800;
+        letter-spacing: -.02em;
+        color: var(--text-h);
+        line-height: 1;
+    }
+    .card-logo-name span { color: var(--ak-red); }
+    .card-logo-sub {
+        font-size: .68rem;
+        font-weight: 500;
+        color: var(--text-m);
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        margin-top: 3px;
+    }
+
+    /* Welcome text */
+    .welcome-heading {
+        font-size: 1.45rem;
+        font-weight: 700;
+        color: var(--text-h);
+        letter-spacing: -.025em;
+        line-height: 1.2;
+        margin-bottom: 6px;
+    }
+    .welcome-sub {
+        font-size: .82rem;
+        color: var(--text-s);
+        margin-bottom: 28px;
+    }
+
+    /* Divider with label */
+    .form-divider {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 22px;
+    }
+    .form-divider-line {
+        flex: 1; height: 1px;
+        background: var(--border);
+    }
+    .form-divider-label {
+        font-size: .68rem;
+        font-weight: 600;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--text-m);
+    }
+
+    /* Error alert */
+    .alert-ak {
+        background: #FEF0EB;
+        border: 1px solid rgba(232,79,38,.3);
+        border-left: 3px solid var(--ak-red);
+        border-radius: var(--r-sm);
+        padding: 10px 14px;
+        font-size: .8rem;
+        color: #7a1a00;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    .alert-ak i { color: var(--ak-red); flex-shrink: 0; margin-top: 1px; }
+
+    /* Form fields */
+    .field-group {
+        margin-bottom: 18px;
+    }
+    .field-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+    }
+    .field-label label {
+        font-size: .75rem;
+        font-weight: 700;
+        color: var(--text-b);
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    /* Input wrapper with icon */
+    .input-wrap {
+        position: relative;
+    }
+    .input-icon {
+        position: absolute;
+        left: 13px; top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-m);
+        font-size: .9rem;
+        pointer-events: none;
+        transition: color var(--t);
+    }
+    .input-wrap input {
+        width: 100%;
+        height: 44px;
+        padding: 0 14px 0 40px;
+        font-size: .87rem;
+        font-family: var(--font);
+        color: var(--text-h);
+        background: var(--surface-2);
+        border: 1.5px solid var(--border);
+        border-radius: var(--r-sm);
+        transition: all var(--t);
+        outline: none;
+    }
+    .input-wrap input::placeholder { color: var(--text-m); }
+    .input-wrap input:focus {
+        border-color: var(--ak-blue);
+        background: var(--surface);
+        box-shadow: 0 0 0 3px rgba(0,167,228,.12);
+    }
+    .input-wrap input:focus + .input-icon,
+    .input-wrap:focus-within .input-icon {
+        color: var(--ak-blue);
+    }
+
+    /* Password toggle */
+    .pass-toggle {
+        position: absolute;
+        right: 12px; top: 50%;
+        transform: translateY(-50%);
+        border: none; background: none;
+        color: var(--text-m); cursor: pointer;
+        font-size: .85rem;
+        padding: 4px;
+        transition: color var(--t);
+    }
+    .pass-toggle:hover { color: var(--text-b); }
+
+    /* Password field extra padding */
+    .input-wrap input[type="password"],
+    .input-wrap input.password-field {
+        padding-right: 40px;
+    }
+
+    /* Validation */
+    .field-error {
+        font-size: .72rem;
+        color: var(--ak-red);
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* AD hint chip */
+    .ad-hint {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: .67rem;
+        font-weight: 600;
+        color: var(--text-m);
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 99px;
+        padding: 2px 8px;
+        font-family: var(--mono);
+        letter-spacing: .02em;
+    }
+    .ad-hint i { color: var(--ak-blue); }
+
+    /* Submit button */
+    .btn-signin {
+        width: 100%;
+        height: 46px;
+        border: none;
+        border-radius: var(--r-sm);
+        background: linear-gradient(135deg, var(--ak-red) 0%, var(--ak-orange) 100%);
+        color: #fff;
+        font-family: var(--font);
+        font-size: .88rem;
+        font-weight: 700;
+        letter-spacing: .02em;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        transition: all var(--t);
+        box-shadow: 0 4px 16px rgba(232,79,38,.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 24px;
+    }
+    .btn-signin:hover {
+        box-shadow: 0 6px 22px rgba(232,79,38,.45);
+        transform: translateY(-1px);
+    }
+    .btn-signin:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(232,79,38,.3); }
+    /* Shimmer on hover */
+    .btn-signin::before {
+        content: '';
+        position: absolute;
+        top: 0; left: -100%;
+        width: 60%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+        transition: left .5s ease;
+    }
+    .btn-signin:hover::before { left: 160%; }
+
+    /* Footer note */
+    .signin-footer {
+        margin-top: 22px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 12px 14px;
+        background: var(--surface-2);
+        border-radius: var(--r-sm);
+        border: 1px solid var(--border);
+    }
+    .signin-footer-icon {
+        width: 24px; height: 24px;
+        border-radius: 6px;
+        background: var(--ak-blue);
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: .65rem;
+        flex-shrink: 0;
+    }
+    .signin-footer-text {
+        font-size: .73rem;
+        color: var(--text-s);
+        line-height: 1.45;
+    }
+    .signin-footer-text strong { color: var(--text-b); font-weight: 600; }
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       RESPONSIVE
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    @@media (max-width: 860px) {
+        .brand-panel { display: none; }
+        .form-panel {
+            background: var(--ak-navy);
+            padding: 32px 20px;
+        }
+        .form-panel::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px);
+            background-size: 24px 24px;
+            pointer-events: none;
+        }
+    }
+    @@media (max-width: 400px) {
+        .card-body-inner { padding: 28px 20px 24px; }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="row justify-content-center align-items-center min-vh-100">
-            <div class="col-md-4 d-flex justify-content-center">
-                <div class="card login-card shadow-sm">
-                    <div class="card-body p-4">
+    <div class="login-wrap">
 
-                        <!-- Header -->
-                        <div class="text-center mb-4">
-                            <h4 class="fw-bold">DEMO EDMs</h4>
-                        </div>
+        <!-- ════════════════════════════════
+             LEFT — Brand Panel
+        ════════════════════════════════ -->
+        <div class="brand-panel">
+            <div class="brand-colorbar"></div>
+            <div class="brand-grid"></div>
 
-                        <hr />
-                        @if (!ViewData.ModelState.IsValid)
-                        {
-                            <div class="alert alert-danger">
-                                @Html.ValidationSummary(false)
-                            </div>
-                        }
-                        @using (Html.BeginForm("Login", "Account", FormMethod.Post))
-                        {
-                            @Html.AntiForgeryToken()
+            <!-- Animated geometry -->
+            <div class="geo geo-1"></div>
+            <div class="geo geo-2"></div>
+            <div class="geo geo-3"></div>
+            <div class="geo geo-4"></div>
 
-                            <!-- Username -->
-                            <div class="mb-3">
-                                @Html.LabelFor(m => m.Username, new { @class = "form-label" })
-                                @Html.TextBoxFor(m => m.Username, new { @class = "form-control", placeholder = "Enter username" })
-                                @Html.ValidationMessageFor(m => m.Username, "", new { @class = "text-danger small" })
-                            </div>
+            <div class="brand-content">
+                <!-- Logo -->
+                <div class="brand-logo-wrap">
+                    <img src="~/assets/imgs/appkings-logo-white.png" alt="AppKings Solutions">
+                </div>
 
-                            <!-- Password -->
-                            <div class="mb-3">
-                                @Html.LabelFor(m => m.Password, new { @class = "form-label" })
-                                @Html.PasswordFor(m => m.Password, new { @class = "form-control", placeholder = "••••••••" })
-                                @Html.ValidationMessageFor(m => m.Password, "", new { @class = "text-danger small" })
-                            </div>
+                <!-- Headline -->
+                <h1 class="brand-headline">
+                    Viable <span class="hl-red">enterprise</span><br>
+                    solutions, <span class="hl-yellow">delivered.</span>
+                </h1>
+                <p class="brand-tagline">
+                    Your organisation's document management platform — secure, structured, and built for teams.
+                </p>
 
-                            <!-- Sign in button -->
-                            <div class="d-grid mb-3">
-                                <button type="submit" class="btn btn-primary">
-                                    Sign in
-                                </button>
-                            </div>
-                        }
-
-                        <!-- Footer -->
-                        <div class="text-center">
-                            <small class="text-muted">
-                                Sign in with your AD username and password
-                            </small>
-                        </div>
-
+                <!-- Feature pills -->
+                <div class="brand-pills">
+                    <div class="brand-pill">
+                        <div class="pill-icon red"><i class="bi bi-shield-lock"></i></div>
+                        <span class="pill-text">Active Directory authentication</span>
+                    </div>
+                    <div class="brand-pill">
+                        <div class="pill-icon yellow"><i class="bi bi-folder2-open"></i></div>
+                        <span class="pill-text">SharePoint document libraries</span>
+                    </div>
+                    <div class="brand-pill">
+                        <div class="pill-icon green"><i class="bi bi-diagram-3"></i></div>
+                        <span class="pill-text">Approval workflow automation</span>
+                    </div>
+                    <div class="brand-pill">
+                        <div class="pill-icon blue"><i class="bi bi-clock-history"></i></div>
+                        <span class="pill-text">Full version history & audit trail</span>
                     </div>
                 </div>
             </div>
+
+            <div class="brand-footer">
+                <span class="brand-footer-text">AppKings Solutions Limited</span>
+                <div class="brand-footer-dot"></div>
+                <span class="brand-footer-text">DMS v1.0</span>
+            </div>
         </div>
-    </div>
+
+        <!-- ════════════════════════════════
+             RIGHT — Form Panel
+        ════════════════════════════════ -->
+        <div class="form-panel">
+            <div class="login-card">
+                <div class="card-accent"></div>
+                <div class="card-body-inner">
+
+                    <!-- Card logo -->
+                    <div class="card-logo">
+                        <div class="card-logo-icon">
+                            <i class="bi bi-lock"></i>
+                        </div>
+                        <div class="card-logo-text">
+                            <div class="card-logo-name"><span>App</span>KINGS</div>
+                            <div class="card-logo-sub">Document Management</div>
+                        </div>
+                    </div>
+
+                    <!-- Welcome -->
+                    <h2 class="welcome-heading">Welcome back</h2>
+                    <p class="welcome-sub">Sign in with your network credentials to continue.</p>
+
+                    <div class="form-divider">
+                        <div class="form-divider-line"></div>
+                        <span class="form-divider-label">AD Account</span>
+                        <div class="form-divider-line"></div>
+                    </div>
+
+                    <!-- Validation errors -->
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div class="alert-ak">
+                            <i class="bi bi-exclamation-circle-fill"></i>
+                            <span>@Html.ValidationSummary(false)</span>
+                        </div>
+                    }
+
+                    <!-- Form -->
+                    @using (Html.BeginForm("Login", "Account", FormMethod.Post))
+                    {
+                        @Html.AntiForgeryToken()
+
+                        <!-- Username -->
+                        <div class="field-group">
+                            <div class="field-label">
+                                @Html.LabelFor(m => m.Username, new { @class = "" })
+                                <span class="ad-hint"><i class="bi bi-building"></i> AD</span>
+                            </div>
+                            <div class="input-wrap">
+                                @Html.TextBoxFor(m => m.Username, new
+                                {
+                                    @class = "form-control",
+                                    placeholder = "e.g. john.doe",
+                                    autocomplete = "username",
+                                    spellcheck = "false",
+                                    autocapitalize = "none"
+                                })
+                                <i class="bi bi-person input-icon"></i>
+                            </div>
+                            @Html.ValidationMessageFor(m => m.Username, "", new { @class = "field-error" })
+                        </div>
+
+                        <!-- Password -->
+                        <div class="field-group">
+                            <div class="field-label">
+                                @Html.LabelFor(m => m.Password, new { @class = "" })
+                            </div>
+                            <div class="input-wrap">
+                                @Html.PasswordFor(m => m.Password, new
+                                {
+                                    @class = "form-control password-field",
+                                    placeholder = "Enter your password",
+                                    id = "passwordInput",
+                                    autocomplete = "current-password"
+                                })
+                                <i class="bi bi-key input-icon"></i>
+                                <button type="button" class="pass-toggle" id="passToggle" tabindex="-1" aria-label="Toggle password">
+                                    <i class="bi bi-eye" id="passIcon"></i>
+                                </button>
+                            </div>
+                            @Html.ValidationMessageFor(m => m.Password, "", new { @class = "field-error" })
+                        </div>
+
+                        <!-- Sign in -->
+                        <button type="submit" class="btn-signin">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            Sign In
+                        </button>
+                    }
+
+                    <!-- Footer -->
+                    <div class="signin-footer">
+                        <div class="signin-footer-icon"><i class="bi bi-info"></i></div>
+                        <p class="signin-footer-text">
+                            Use your <strong>Windows / AD username and password</strong>. Contact IT if you cannot access your account.
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /login-wrap -->
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Password show/hide toggle
+        const passInput = document.getElementById('passwordInput');
+        const passToggle = document.getElementById('passToggle');
+        const passIcon = document.getElementById('passIcon');
+
+        passToggle?.addEventListener('click', () => {
+            const isPass = passInput.type === 'password';
+            passInput.type = isPass ? 'text' : 'password';
+            passIcon.className = isPass ? 'bi bi-eye-slash' : 'bi bi-eye';
+        });
+
+        // Focus first empty field
+        document.addEventListener('DOMContentLoaded', () => {
+            const username = document.querySelector('input[name="Username"]');
+            const password = document.getElementById('passwordInput');
+            if (username && !username.value) {
+                username.focus();
+            } else if (password) {
+                password.focus();
+            }
+        });
+
+        // Add "loading" state to sign-in button
+        document.querySelector('form')?.addEventListener('submit', function (e) {
+            const btn = document.querySelector('.btn-signin');
+            if (btn) {
+                btn.innerHTML = '<span style="width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;display:inline-block;animation:spin .7s linear infinite;"></span> Signing in…';
+                btn.disabled = true;
+            }
+        });
+    </script>
+    <style>
+    @@keyframes spin { to { transform: rotate(360deg); } }
+    </style>
 </body>
 </html>

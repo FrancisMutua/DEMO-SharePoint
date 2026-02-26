@@ -48,7 +48,7 @@ namespace DEMO_SharePoint.Models
 
         public ClientContext GetContext(string username = null, string password = null)
         {
-            string user = username ?? HttpContext.Current.Session["Username"]?.ToString();
+            string user = username ?? HttpContext.Current.Session["username"]?.ToString();
             string pass = password ?? HttpContext.Current.Session["password"]?.ToString();
 
             if (string.IsNullOrEmpty(user) || string.IsNullOrEmpty(pass))
@@ -325,20 +325,40 @@ namespace DEMO_SharePoint.Models
 
                 foreach (var item in items)
                 {
-                    var stagesJson = item["StagesJson"]?.ToString();
+                    var stagesJson = item["StagesJson"] != null
+                        ? item["StagesJson"].ToString()
+                        : null;
 
                     var stages = string.IsNullOrEmpty(stagesJson)
                         ? new List<WorkflowStageModel>()
                         : JsonConvert.DeserializeObject<List<WorkflowStageModel>>(stagesJson);
 
+                    // SAFE LEVELS (SharePoint Number = double)
+                    int levels = 0;
+                    if (item["Levels"] != null)
+                    {
+                        double levelDouble;
+                        if (double.TryParse(item["Levels"].ToString(), out levelDouble))
+                        {
+                            levels = Convert.ToInt32(levelDouble);
+                        }
+                    }
+
+                    // SAFE BOOLEAN (Yes/No field)
+                    bool isActive = false;
+                    if (item["IsActive"] != null)
+                    {
+                        bool.TryParse(item["IsActive"].ToString(), out isActive);
+                    }
+
                     result.Add(new WorkflowConfigVM
                     {
                         Id = item.Id,
-                        WorkflowName = item["Title"]?.ToString(),
-                        LibraryUrl = item["LibraryUrl"]?.ToString(),
-                        Levels = Convert.ToInt32(item["Levels"]),
-                        IsActive = (bool)item["IsActive"],
-                        Stages = stages   // ✅ IMPORTANT
+                        WorkflowName = item["Title"] != null ? item["Title"].ToString() : "",
+                        LibraryUrl = item["LibraryUrl"] != null ? item["LibraryUrl"].ToString() : "",
+                        Levels = levels,
+                        IsActive = isActive,
+                        Stages = stages
                     });
                 }
             }
@@ -407,7 +427,7 @@ namespace DEMO_SharePoint.Models
                 string currentLevel = listItem["Stage"] + "";
                 int nextLevel = Convert.ToInt32(currentLevel) + 1;
                 int totalLevel = Convert.ToInt32(listItem["TotalLevels"] + "");
-                if (nextLevel <= totalLevel)
+                if (nextLevel >= totalLevel)
                 {
                     listItem["Status"] = "Approved";
                     listItem["Comments"] = comments;

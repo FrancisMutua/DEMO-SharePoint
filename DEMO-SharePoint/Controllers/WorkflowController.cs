@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web.Mvc;
 using DEMO_SharePoint.Models;
-using DEMO_SharePoint.Models;
 using static DEMO_SharePoint.Models.Helper;
 using WorkflowInstance = DEMO_SharePoint.Models.WorkflowInstance;
 
@@ -113,6 +112,27 @@ public class WorkflowController : Controller
         }
     }
 
+        public ActionResult SubmittedApprovals()
+    {
+        var user = HttpContext.Session["Username"]?.ToString() ?? "UnknownUser";
+        var pending = new List<WorkflowInstance>();
+
+        // Get all workflow instances with Status = "Pending"
+        var allPendingInstances = helper.GetWorkflowInstances()
+                                        //.Where(i => i.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase))
+                                        .ToList();
+
+        foreach (var instance in allPendingInstances)
+        {
+            // Check if the logged-in user is an approver for this stage
+            if (instance.Approver != null && instance.SubmittedBy.Equals(user, StringComparison.OrdinalIgnoreCase))
+            {
+                pending.Add(instance);
+            }
+        }
+
+        return View(pending);
+    }
 
     // Dashboard for approvers
     public ActionResult MyApprovals()

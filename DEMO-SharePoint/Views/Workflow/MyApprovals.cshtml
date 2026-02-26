@@ -4,14 +4,204 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 
+<!-- Viewer libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.5.1/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+    /* ── Viewer styles ───────────────────────────────────────────────────── */
+    #pdfViewerContainer {
+        background: #525659;
+        padding: 16px;
+        min-height: 400px;
+    }
+
+        #pdfViewerContainer canvas {
+            display: block;
+            margin: 0 auto 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,.4);
+        }
+
+    #wordViewerContainer {
+        padding: 32px 40px;
+        background: #fff;
+        font-family: Calibri,Georgia,serif;
+        font-size: 11pt;
+        line-height: 1.6;
+        color: #222;
+        max-width: 860px;
+        margin: 0 auto;
+    }
+
+        #wordViewerContainer table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        #wordViewerContainer td, #wordViewerContainer th {
+            border: 1px solid #ccc;
+            padding: 4px 8px;
+        }
+
+    #excelViewerContainer {
+        padding: 16px;
+        overflow: auto;
+        background: #fff;
+    }
+
+        #excelViewerContainer table {
+            border-collapse: collapse;
+            font-size: .78rem;
+        }
+
+        #excelViewerContainer td, #excelViewerContainer th {
+            border: 1px solid #ddd;
+            padding: 3px 8px;
+            white-space: nowrap;
+        }
+
+        #excelViewerContainer tr:nth-child(even) {
+            background: #f7f7f7;
+        }
+
+    #csvViewerContainer {
+        padding: 16px;
+        overflow: auto;
+        background: #fff;
+    }
+
+        #csvViewerContainer table {
+            border-collapse: collapse;
+            font-size: .78rem;
+            width: 100%;
+        }
+
+        #csvViewerContainer td, #csvViewerContainer th {
+            border: 1px solid #e2e8f0;
+            padding: 4px 10px;
+        }
+
+        #csvViewerContainer thead {
+            background: #f0f4f8;
+            font-weight: 700;
+        }
+
+        #csvViewerContainer tr:hover {
+            background: #f8fafc;
+        }
+
+    .text-viewer {
+        padding: 24px 32px;
+        background: #1e1e2e;
+        color: #cdd6f4;
+        font-family: 'Cascadia Code','Fira Code',monospace;
+        font-size: .82rem;
+        line-height: 1.7;
+        white-space: pre-wrap;
+        word-break: break-all;
+        min-height: 400px;
+        margin: 0;
+    }
+
+    .viewer-error {
+        padding: 40px;
+        text-align: center;
+        color: #dc2626;
+        background: #fff1f1;
+        border-radius: 8px;
+        margin: 20px;
+    }
+
+    .viewer-unsupported {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        color: #94a3b8;
+        text-align: center;
+        gap: 12px;
+    }
+
+        .viewer-unsupported .uns-icon {
+            font-size: 3rem;
+            opacity: .35;
+        }
+
+        .viewer-unsupported h6 {
+            font-size: .95rem;
+            margin: 0;
+            color: #475569;
+        }
+
+    .viewer-download-btn {
+        padding: 10px 24px;
+        border-radius: 8px;
+        background: #e84f26;
+        color: #fff;
+        border: none;
+        font-size: .85rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        margin-top: 4px;
+    }
+
+        .viewer-download-btn:hover {
+            opacity: .88;
+            color: #fff;
+        }
+
+    .media-viewer {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 20px;
+        background: #0f0f14;
+        min-height: 300px;
+        gap: 16px;
+    }
+
+        .media-viewer video, .media-viewer audio {
+            max-width: 100%;
+            border-radius: 8px;
+            outline: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,.5);
+        }
+
+        .media-viewer audio {
+            width: 100%;
+            max-width: 540px;
+        }
+
+    .excel-tab {
+        padding: 4px 12px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        background: #fff;
+        font-size: .74rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .excel-tab.active {
+            background: #217346;
+            color: #fff;
+            border-color: #217346;
+        }
+</style>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="mb-0 fw-bold">
         <i class="bi bi-check2-square me-2 text-primary"></i>
         Approval Dashboard
     </h5>
-    @* <span class="badge bg-primary">
-            @Model?.Count() Pending Items
-        </span>*@
+    @* <span class="badge bg-primary">@Model?.Count() Pending Items</span> *@
 </div>
 
 @if (Model != null && Model.Any())
@@ -70,19 +260,26 @@
                         <td class="text-center">
                             @if (item.Status == "Pending")
                             {
-                                <button class="btn btn-outline-primary btn-sm btn-action me-1"
+                                <button class="btn btn-outline-primary btn-sm me-1"
                                         onclick="openViewer('@item.ItemUrl')">
                                     <i class="bi bi-eye"></i> View
                                 </button>
 
-                                <button class="btn btn-success btn-sm btn-action me-1"
+                                <button class="btn btn-success btn-sm me-1"
                                         onclick="approve('@item.Id','@item.ItemUrl')">
                                     <i class="bi bi-check-lg"></i>
                                 </button>
 
-                                <button class="btn btn-danger btn-sm btn-action"
+                                <button class="btn btn-danger btn-sm"
                                         onclick="reject('@item.Id')">
                                     <i class="bi bi-x-lg"></i>
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-outline-primary btn-sm me-1"
+                                        onclick="openViewer('@item.ItemUrl')">
+                                    <i class="bi bi-eye"></i> View
                                 </button>
                             }
                         </td>
@@ -101,133 +298,369 @@ else
 }
 
 
-
-
-<!-- ====== DOCUMENT VIEWER MODAL ====== -->
+<!-- ══════════════════════════════════════════════
+     MODAL: FILE VIEWER
+══════════════════════════════════════════════ -->
 <div class="modal fade" id="fileViewerModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Document Viewer</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header" style="padding:12px 20px;">
+                <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                    <div id="viewerFileIcon"
+                         style="width:32px;height:32px;border-radius:7px;background:#fff3f0;display:flex;
+                                align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">
+                        <i class="bi bi-file-earmark" style="color:#e84f26;"></i>
+                    </div>
+                    <div style="min-width:0;">
+                        <h6 class="modal-title mb-0" id="viewerTitle"
+                            style="font-size:.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            Document Viewer
+                        </h6>
+                        <div id="viewerSubtitle" style="font-size:.68rem;color:#94a3b8;font-family:monospace;"></div>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:12px;">
+                    <a id="viewerDownloadBtn" href="#" download
+                       style="padding:5px 12px;border-radius:6px;background:#f8fafc;border:1px solid #e2e8f0;
+                              font-size:.75rem;font-weight:600;color:#475569;text-decoration:none;
+                              display:flex;align-items:center;gap:5px;">
+                        <i class="bi bi-download"></i> Download
+                    </a>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
-            <div class="modal-body p-0" style="height:75vh;">
-                <iframe id="fileViewerFrame" src="" style="width:100%; height:100%; border:none;"></iframe>
+            <div class="modal-body p-0" style="height:75vh;overflow:hidden;">
+                <div id="viewerContent" style="width:100%;height:100%;overflow:auto;"></div>
             </div>
         </div>
     </div>
 </div>
 
+
 <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    // ===== VIEWER FUNCTION =====
+
+    // ══════════════════════════════════════════════
+    //  DOCUMENT VIEWER
+    // ══════════════════════════════════════════════
+
+    const EXT = {
+        pdf: ['.pdf'],
+        word: ['.docx', '.doc'],
+        excel: ['.xlsx', '.xls', '.ods'],
+        ppt: ['.pptx', '.ppt'],
+        image: ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.tiff', '.tif', '.ico', '.avif'],
+        text: ['.txt', '.log', '.md', '.json', '.xml', '.yaml', '.yml', '.ini', '.cfg', '.sh', '.bat', '.ps1', '.py', '.js', '.ts', '.css', '.html', '.htm', '.rtf'],
+        csv: ['.csv', '.tsv'],
+        video: ['.mp4', '.webm', '.ogv', '.mov'],
+        audio: ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.opus'],
+        archive: ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'],
+    };
+
+    const EXT_ICON = {
+        pdf: 'bi-file-earmark-pdf', word: 'bi-file-earmark-word',
+        excel: 'bi-file-earmark-excel', ppt: 'bi-file-earmark-slides',
+        image: 'bi-file-earmark-image', text: 'bi-file-earmark-code',
+        csv: 'bi-file-earmark-spreadsheet', video: 'bi-file-earmark-play',
+        audio: 'bi-file-earmark-music', archive: 'bi-file-earmark-zip',
+    };
+
+    function getExtGroup(ext) {
+        for (const [group, exts] of Object.entries(EXT)) {
+            if (exts.includes(ext)) return group;
+        }
+        return 'other';
+    }
+
+    function escapeHtml(t) {
+        const d = document.createElement('div');
+        d.textContent = String(t || '');
+        return d.innerHTML;
+    }
+
+    let _currentBlobUrl = null;
+
     function openViewer(fileUrl) {
+        const fileName = fileUrl.split('/').pop().split('?')[0];
+        const dotIdx = fileName.lastIndexOf('.');
+        const ext = (dotIdx >= 0 ? fileName.substring(dotIdx) : '').toLowerCase();
+        const group = getExtGroup(ext);
 
-        const restrictedPath = "/Legal Services Departments/DEMO POLICIES";
-        const isRestricted = fileUrl && fileUrl.includes(restrictedPath);
+        // Update modal header
+        document.getElementById('viewerTitle').textContent = fileName;
+        document.getElementById('viewerSubtitle').textContent = ext ? ext.replace('.', '').toUpperCase() + ' file' : 'Unknown type';
+        document.getElementById('viewerFileIcon').innerHTML =
+            `<i class="bi ${EXT_ICON[group] || 'bi-file-earmark'}" style="color:#e84f26;"></i>`;
 
-        const modalElement = document.getElementById("fileViewerModal");
-        const modal = new bootstrap.Modal(modalElement);
-        const modalBody = $('#fileViewerModal .modal-body');
+        const vc = document.getElementById('viewerContent');
+        vc.innerHTML = `
+        <div style="text-align:center;padding:60px;color:#94a3b8;">
+            <div class="spinner-border" role="status"></div>
+            <p style="margin-top:12px;font-size:.83rem;">Loading ${escapeHtml(ext || 'file')}…</p>
+        </div>`;
 
-        // Loading spinner
-        modalBody.html(`
-            <div style="text-align:center;padding:50px;">
-                <div class="spinner-border" role="status"></div>
-                <p>Loading...</p>
-            </div>
-        `);
-
+        const modal = new bootstrap.Modal(document.getElementById('fileViewerModal'));
         modal.show();
+
+        document.getElementById('fileViewerModal').addEventListener('hidden.bs.modal', () => {
+            if (_currentBlobUrl) { URL.revokeObjectURL(_currentBlobUrl); _currentBlobUrl = null; }
+        }, { once: true });
 
         $.ajax({
             url: '/Home/ViewDocument',
             type: 'POST',
-            data: JSON.stringify({ fileUrl: fileUrl }),
+            data: JSON.stringify({ fileUrl }),
             contentType: 'application/json',
             xhrFields: { responseType: 'blob' },
-            success: async function (blob) {
-
+            success(blob) {
                 if (!blob || blob.size === 0) {
-                    Swal.fire('Error', 'Empty file received', 'error');
-                    modal.hide();
+                    vc.innerHTML = `<div class="viewer-error"><strong>Empty file received.</strong></div>`;
                     return;
                 }
-
-                const fileURL = URL.createObjectURL(blob);
-
-                // Clean up blob when modal closes
-                modalElement.addEventListener('hidden.bs.modal', function () {
-                    URL.revokeObjectURL(fileURL);
-                }, { once: true });
-
-                if (isRestricted) {
-
-                    modalBody.html(`
-                        <div id="pdfViewerContainer"
-                             style="width:100%; height:80vh; overflow:auto; position:relative;">
-                        </div>
-                    `);
-
-                    const container = document.getElementById('pdfViewerContainer');
-
-                    pdfjsLib.GlobalWorkerOptions.workerSrc =
-                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-
-                    try {
-                        const pdf = await pdfjsLib.getDocument(fileURL).promise;
-
-                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-
-                            const page = await pdf.getPage(pageNum);
-
-                            const canvas = document.createElement('canvas');
-                            canvas.style.display = "block";
-                            canvas.style.margin = "10px auto";
-
-                            const viewport = page.getViewport({ scale: 1.2 });
-                            canvas.height = viewport.height;
-                            canvas.width = viewport.width;
-
-                            container.appendChild(canvas);
-
-                            const context = canvas.getContext('2d');
-                            await page.render({
-                                canvasContext: context,
-                                viewport: viewport
-                            }).promise;
-                        }
-
-                    } catch (err) {
-                        Swal.fire('Error', 'Failed to render PDF', 'error');
-                        modal.hide();
-                    }
-
-                } else {
-
-                    modalBody.html(`
-                        <iframe id="fileViewerFrame"
-                                style="width:100%;height:80vh;border:none;"
-                                sandbox="allow-same-origin allow-scripts">
-                        </iframe>
-                    `);
-
-                    $("#fileViewerFrame").attr("src", fileURL);
+                _currentBlobUrl = URL.createObjectURL(blob);
+                document.getElementById('viewerDownloadBtn').href = _currentBlobUrl;
+                document.getElementById('viewerDownloadBtn').download = fileName;
+                try { dispatchViewer(group, ext, _currentBlobUrl, blob, vc, fileUrl, fileName); }
+                catch (e) {
+                    vc.innerHTML = `<div class="viewer-error"><strong>Render error:</strong> ${escapeHtml(e.message)}</div>`;
                 }
             },
-            error: function (xhr) {
-                Swal.fire('Error',
-                    xhr.responseText || 'Server error occurred',
-                    'error');
-                modal.hide();
+            error(xhr) {
+                let msg = 'Failed to load file.';
+                try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch { }
+                vc.innerHTML = `<div class="viewer-error"><strong>${escapeHtml(msg)}</strong></div>`;
             }
         });
     }
 
+    function dispatchViewer(group, ext, blobUrl, blob, container, originalUrl, fileName) {
+        switch (group) {
+            case 'pdf': return renderPDF(blobUrl, container);
+            case 'word': return renderWord(blob, container);
+            case 'excel': return renderExcel(blob, container);
+            case 'csv': return renderCSV(blob, container, ext === '.tsv');
+            case 'image': return renderImage(blobUrl, container, fileName);
+            case 'text': return renderText(blob, container);
+            case 'video': return renderVideo(blobUrl, container, ext);
+            case 'audio': return renderAudio(blobUrl, container, ext);
+            case 'ppt': return renderPPT(container, fileName, blobUrl, originalUrl);
+            case 'archive':
+            default: return renderDownloadOnly(container, fileName, ext, blobUrl);
+        }
+    }
 
-    // ===== APPROVE FUNCTION =====
+    // ── PDF ──────────────────────────────────────────────────────────────────
+    function renderPDF(blobUrl, container) {
+        container.innerHTML = `<div id="pdfViewerContainer"></div>`;
+        const pdfC = document.getElementById('pdfViewerContainer');
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        pdfjsLib.getDocument({ url: blobUrl }).promise.then(pdf => {
+            for (let i = 1; i <= pdf.numPages; i++) {
+                pdf.getPage(i).then(page => {
+                    const canvas = document.createElement('canvas');
+                    pdfC.appendChild(canvas);
+                    const vp = page.getViewport({ scale: 1.4 });
+                    canvas.height = vp.height; canvas.width = vp.width;
+                    page.render({ canvasContext: canvas.getContext('2d'), viewport: vp });
+                });
+            }
+        }).catch(e => {
+            pdfC.innerHTML = `<div class="viewer-error">PDF error: ${escapeHtml(e.message)}</div>`;
+        });
+    }
+
+    // ── Word ─────────────────────────────────────────────────────────────────
+    function renderWord(blob, container) {
+        const r = new FileReader();
+        r.onload = e => mammoth.convertToHtml({ arrayBuffer: e.target.result })
+            .then(res => { container.innerHTML = `<div id="wordViewerContainer">${res.value}</div>`; })
+            .catch(e => { container.innerHTML = `<div class="viewer-error">Word error: ${escapeHtml(e.message)}</div>`; });
+        r.readAsArrayBuffer(blob);
+    }
+
+    // ── Excel / ODS ──────────────────────────────────────────────────────────
+    function renderExcel(blob, container) {
+        const r = new FileReader();
+        r.onload = e => {
+            try {
+                const wb = XLSX.read(e.target.result, { type: 'array' });
+                let tabs = '', sheets = '';
+                wb.SheetNames.forEach((name, i) => {
+                    tabs += `<button class="excel-tab ${i === 0 ? 'active' : ''}"
+                               onclick="switchSheet(this,'vs${i}')">${escapeHtml(name)}</button>`;
+                    sheets += `<div id="vs${i}" class="excel-sheet" style="${i > 0 ? 'display:none' : ''}">
+                               ${XLSX.utils.sheet_to_html(wb.Sheets[name])}
+                           </div>`;
+                });
+                container.innerHTML = `
+                <div style="background:#f0f4f8;padding:8px 12px;border-bottom:1px solid #ddd;
+                            display:flex;gap:4px;flex-wrap:wrap;">${tabs}</div>
+                <div id="excelViewerContainer">${sheets}</div>`;
+            } catch (ex) {
+                container.innerHTML = `<div class="viewer-error">Spreadsheet error: ${escapeHtml(ex.message)}</div>`;
+            }
+        };
+        r.readAsArrayBuffer(blob);
+    }
+
+    function switchSheet(btn, id) {
+        document.querySelectorAll('.excel-tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.excel-sheet').forEach(s => s.style.display = 'none');
+        btn.classList.add('active');
+        document.getElementById(id).style.display = '';
+    }
+
+    // ── CSV / TSV ────────────────────────────────────────────────────────────
+    function renderCSV(blob, container, isTsv) {
+        const r = new FileReader();
+        r.onload = e => {
+            const sep = isTsv ? '\t' : ',';
+            const lines = e.target.result.replace(/\r/g, '').split('\n').filter(l => l.trim());
+            if (!lines.length) { container.innerHTML = '<p style="padding:20px;color:#888;">Empty file.</p>'; return; }
+            const parse = line => {
+                const cells = []; let cur = '', inQ = false;
+                for (const ch of line) {
+                    if (ch === '"') { inQ = !inQ; }
+                    else if (ch === sep && !inQ) { cells.push(cur); cur = ''; }
+                    else cur += ch;
+                }
+                cells.push(cur); return cells;
+            };
+            const headers = parse(lines[0]);
+            let html = `<table><thead><tr>${headers.map(h => `<th>${escapeHtml(h.trim())}</th>`).join('')}</tr></thead><tbody>`;
+            for (let i = 1; i < lines.length; i++) {
+                html += `<tr>${parse(lines[i]).map(c => `<td>${escapeHtml(c.trim())}</td>`).join('')}</tr>`;
+            }
+            html += '</tbody></table>';
+            container.innerHTML = `<div id="csvViewerContainer">${html}
+            <p style="font-size:.7rem;color:#888;padding:8px 12px;">
+                ${lines.length - 1} rows · ${headers.length} columns
+            </p></div>`;
+        };
+        r.readAsText(blob);
+    }
+
+    // ── Image ────────────────────────────────────────────────────────────────
+    function renderImage(blobUrl, container, fileName) {
+        container.innerHTML = `
+        <div style="text-align:center;padding:20px;background:#1a1a2e;min-height:300px;
+                    display:flex;align-items:center;justify-content:center;">
+            <img src="${blobUrl}" alt="${escapeHtml(fileName)}"
+                 style="max-width:100%;max-height:68vh;border-radius:6px;box-shadow:0 4px 24px rgba(0,0,0,.5);"
+                 onerror="this.parentElement.innerHTML='<p style=color:#888>Could not render image.</p>'" />
+        </div>`;
+    }
+
+    // ── Plain text / code ────────────────────────────────────────────────────
+    function renderText(blob, container) {
+        const r = new FileReader();
+        r.onload = e => { container.innerHTML = `<pre class="text-viewer">${escapeHtml(e.target.result)}</pre>`; };
+        r.readAsText(blob);
+    }
+
+    // ── Video ────────────────────────────────────────────────────────────────
+    function renderVideo(blobUrl, container, ext) {
+        const mime = { '.mp4': 'video/mp4', '.webm': 'video/webm', '.ogv': 'video/ogg', '.mov': 'video/mp4' }[ext] || 'video/mp4';
+        container.innerHTML = `
+        <div class="media-viewer">
+            <video controls autoplay style="max-height:68vh;max-width:100%;">
+                <source src="${blobUrl}" type="${mime}">
+                Your browser does not support this video format.
+            </video>
+        </div>`;
+    }
+
+    // ── Audio ────────────────────────────────────────────────────────────────
+    function renderAudio(blobUrl, container, ext) {
+        const mime = {
+            '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg',
+            '.flac': 'audio/flac', '.aac': 'audio/aac', '.m4a': 'audio/mp4', '.opus': 'audio/ogg'
+        }[ext] || 'audio/mpeg';
+        container.innerHTML = `
+        <div class="media-viewer">
+            <div style="font-size:3.5rem;opacity:.3;margin-bottom:8px;"><i class="bi bi-music-note-beamed"></i></div>
+            <audio controls autoplay style="width:100%;max-width:560px;">
+                <source src="${blobUrl}" type="${mime}">
+                Your browser does not support this audio format.
+            </audio>
+        </div>`;
+    }
+
+    // ── PowerPoint — Office Online iframe ────────────────────────────────────
+    function renderPPT(container, fileName, blobUrl, originalUrl) {
+        const absUrl = (window.location.origin + originalUrl).split('?')[0];
+        const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absUrl)}`;
+        container.innerHTML = `
+        <div style="position:relative;width:100%;height:100%;background:#2d2d2d;">
+            <div id="pptLoadingMsg" style="position:absolute;inset:0;display:flex;flex-direction:column;
+                 align-items:center;justify-content:center;color:#aaa;gap:12px;z-index:1;pointer-events:none;">
+                <div class="spinner-border text-secondary" role="status" style="width:28px;height:28px;border-width:2px;"></div>
+                <span style="font-size:.82rem;">Opening in Office Online…</span>
+            </div>
+            <iframe src="${officeUrl}"
+                    style="width:100%;height:100%;border:none;position:relative;z-index:2;"
+                    allowfullscreen
+                    onload="document.getElementById('pptLoadingMsg').style.display='none';"
+                    onerror="pptIframeFallback('${escapeHtml(blobUrl)}','${escapeHtml(fileName)}')">
+            </iframe>
+            <div style="position:absolute;bottom:0;left:0;right:0;z-index:3;
+                        background:rgba(0,0,0,.55);backdrop-filter:blur(6px);
+                        padding:6px 14px;display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:.72rem;color:rgba(255,255,255,.6);">
+                    <i class="bi bi-info-circle me-1"></i>Powered by Microsoft Office Online
+                </span>
+                <a href="${blobUrl}" download="${escapeHtml(fileName)}"
+                   style="font-size:.73rem;color:#fff;background:rgba(255,255,255,.12);padding:4px 12px;
+                          border-radius:5px;text-decoration:none;display:flex;align-items:center;gap:5px;">
+                    <i class="bi bi-download"></i> Download
+                </a>
+            </div>
+        </div>`;
+    }
+
+    function pptIframeFallback(blobUrl, fileName) {
+        const vc = document.getElementById('viewerContent');
+        if (!vc) return;
+        vc.innerHTML = `
+        <div class="viewer-unsupported">
+            <div class="uns-icon"><i class="bi bi-file-earmark-slides"></i></div>
+            <h6>Office Online unavailable</h6>
+            <p style="font-size:.82rem;max-width:380px;">
+                The file may be on an internal network not reachable by Office Online. Download to view locally.
+            </p>
+            <a href="${blobUrl}" download="${escapeHtml(fileName)}" class="viewer-download-btn">
+                <i class="bi bi-download"></i> Download ${escapeHtml(fileName)}
+            </a>
+        </div>`;
+    }
+
+    // ── Archive / unknown fallback ────────────────────────────────────────────
+    function renderDownloadOnly(container, fileName, ext, blobUrl) {
+        const hints = {
+            '.zip': 'Archive files cannot be previewed. Download to extract.',
+            '.rar': 'RAR archives cannot be previewed. Download to extract.',
+            '.7z': '7-Zip archives cannot be previewed. Download to extract.',
+        };
+        const hint = hints[ext] || `<strong>${ext ? ext.replace('.', '').toUpperCase() : 'This'}</strong> file type cannot be previewed in the browser.`;
+        container.innerHTML = `
+        <div class="viewer-unsupported">
+            <div class="uns-icon"><i class="bi bi-file-earmark-x"></i></div>
+            <h6>Preview not available</h6>
+            <p style="font-size:.82rem;max-width:380px;">${hint}</p>
+            <a href="${blobUrl}" download="${escapeHtml(fileName)}" class="viewer-download-btn">
+                <i class="bi bi-download"></i> Download ${escapeHtml(fileName)}
+            </a>
+        </div>`;
+    }
+
+
+    // ══════════════════════════════════════════════
+    //  APPROVE
+    // ══════════════════════════════════════════════
     function approve(workflowInstanceId, itemUrl) {
-
         Swal.fire({
             title: 'Approve?',
             input: 'textarea',
@@ -235,9 +668,7 @@ else
             showCancelButton: true,
             confirmButtonText: 'Approve'
         }).then(result => {
-
             if (!result.isConfirmed) return;
-
             $.ajax({
                 url: '/Workflow/Approve',
                 type: 'POST',
@@ -247,31 +678,25 @@ else
                     itemUrl: itemUrl,
                     comments: result.value || ''
                 }),
-                success: function (res) {
-
+                success(res) {
                     if (!res || !res.success) {
-                        Swal.fire('Error',
-                            res?.message || 'Approval failed',
-                            'error');
+                        Swal.fire('Error', res?.message || 'Approval failed', 'error');
                         return;
                     }
-
-                    Swal.fire('Approved!', '', 'success')
-                        .then(() => location.reload());
+                    Swal.fire('Approved!', '', 'success').then(() => location.reload());
                 },
-                error: function (xhr) {
-                    Swal.fire('Error',
-                        xhr.responseText || 'Server error occurred',
-                        'error');
+                error(xhr) {
+                    Swal.fire('Error', xhr.responseText || 'Server error occurred', 'error');
                 }
             });
         });
     }
 
 
-    // ===== REJECT FUNCTION =====
+    // ══════════════════════════════════════════════
+    //  REJECT
+    // ══════════════════════════════════════════════
     function reject(id) {
-
         Swal.fire({
             title: 'Reject?',
             input: 'textarea',
@@ -280,9 +705,7 @@ else
             showCancelButton: true,
             confirmButtonText: 'Reject'
         }).then(result => {
-
             if (!result.isConfirmed) return;
-
             $.ajax({
                 url: '/Workflow/Reject',
                 type: 'POST',
@@ -291,26 +714,18 @@ else
                     instanceId: id,
                     comments: result.value
                 }),
-                success: function (res) {
-
+                success(res) {
                     if (!res || !res.success) {
-                        Swal.fire('Error',
-                            res?.message || 'Rejection failed',
-                            'error');
+                        Swal.fire('Error', res?.message || 'Rejection failed', 'error');
                         return;
                     }
-
-                    Swal.fire('Rejected!', '', 'success')
-                        .then(() => location.reload());
+                    Swal.fire('Rejected!', '', 'success').then(() => location.reload());
                 },
-                error: function (xhr) {
-                    Swal.fire('Error',
-                        xhr.responseText || 'Server error occurred',
-                        'error');
+                error(xhr) {
+                    Swal.fire('Error', xhr.responseText || 'Server error occurred', 'error');
                 }
             });
         });
     }
+
 </script>
-
-

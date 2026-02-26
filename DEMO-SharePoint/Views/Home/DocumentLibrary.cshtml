@@ -2,758 +2,1439 @@
 @{
     ViewBag.Title = "Document Library";
     var items = ViewBag.Items as List<SPItem>;
+    var allColumns = items != null && items.Any()
+        ? items.SelectMany(i => i.Metadata.Keys).Distinct().ToList()
+        : new List<string>();
 }
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-<!-- DataTables Bootstrap 5 integration -->
+
+<!-- Page-specific libraries -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<!-- SweetAlert2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
-<!-- SweetAlert2 JS -->
-<!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.5.1/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
+    /* ── Viewer-specific styles ──────────────────────────────────────────── */
     #pdfViewerContainer {
-        width: 100%;
-        height: 800px;
-        border: 1px solid #ccc;
-        overflow-y: auto;
-        position: relative;
-        user-select: none; /* disable text selection */
+        background: #525659;
+        padding: 16px;
+        min-height: 400px;
     }
 
-    canvas {
-        display: block;
-        margin: 0 auto 10px auto;
+        #pdfViewerContainer canvas {
+            display: block;
+            margin: 0 auto 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,.4);
+        }
+
+    #wordViewerContainer {
+        padding: 32px 40px;
+        background: #fff;
+        font-family: Calibri,Georgia,serif;
+        font-size: 11pt;
+        line-height: 1.6;
+        color: #222;
+        max-width: 860px;
+        margin: 0 auto;
     }
 
-    /* Overlay to block right-click */
-    #scrollOverlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 10;
-        cursor: default;
+        #wordViewerContainer table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        #wordViewerContainer td, #wordViewerContainer th {
+            border: 1px solid #ccc;
+            padding: 4px 8px;
+        }
+
+    #excelViewerContainer {
+        padding: 16px;
+        overflow: auto;
+        background: #fff;
+    }
+
+        #excelViewerContainer table {
+            border-collapse: collapse;
+            font-size: .78rem;
+        }
+
+        #excelViewerContainer td, #excelViewerContainer th {
+            border: 1px solid #ddd;
+            padding: 3px 8px;
+            white-space: nowrap;
+        }
+
+        #excelViewerContainer tr:nth-child(even) {
+            background: #f7f7f7;
+        }
+
+    #csvViewerContainer {
+        padding: 16px;
+        overflow: auto;
+        background: #fff;
+    }
+
+        #csvViewerContainer table {
+            border-collapse: collapse;
+            font-size: .78rem;
+            width: 100%;
+        }
+
+        #csvViewerContainer td, #csvViewerContainer th {
+            border: 1px solid #e2e8f0;
+            padding: 4px 10px;
+        }
+
+        #csvViewerContainer thead {
+            background: #f0f4f8;
+            font-weight: 700;
+        }
+
+        #csvViewerContainer tr:hover {
+            background: #f8fafc;
+        }
+
+    .text-viewer {
+        padding: 24px 32px;
+        background: #1e1e2e;
+        color: #cdd6f4;
+        font-family: 'Cascadia Code','Fira Code',monospace;
+        font-size: .82rem;
+        line-height: 1.7;
+        white-space: pre-wrap;
+        word-break: break-all;
+        min-height: 400px;
+        margin: 0;
+    }
+
+    .viewer-error {
+        padding: 40px;
+        text-align: center;
+        color: #dc2626;
+        background: #fff1f1;
+        border-radius: 8px;
+        margin: 20px;
+    }
+
+    .viewer-unsupported {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        color: var(--dl-text-muted);
+        text-align: center;
+        gap: 12px;
+    }
+
+        .viewer-unsupported .uns-icon {
+            font-size: 3rem;
+            opacity: .35;
+        }
+
+        .viewer-unsupported h6 {
+            font-size: .95rem;
+            margin: 0;
+        }
+
+    .viewer-download-btn {
+        padding: 10px 24px;
+        border-radius: 8px;
+        background: var(--dl-accent,#e84f26);
+        color: #fff;
+        border: none;
+        font-size: .85rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        margin-top: 4px;
+    }
+
+        .viewer-download-btn:hover {
+            opacity: .88;
+            color: #fff;
+        }
+    /* Audio / Video */
+    .media-viewer {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 20px;
+        background: #0f0f14;
+        min-height: 300px;
+        gap: 16px;
+    }
+
+        .media-viewer video, .media-viewer audio {
+            max-width: 100%;
+            border-radius: 8px;
+            outline: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,.5);
+        }
+
+        .media-viewer audio {
+            width: 100%;
+            max-width: 540px;
+        }
+    /* Metadata form */
+    .meta-field-group {
+        margin-bottom: 14px;
+    }
+
+        .meta-field-group .form-label {
+            font-size: .76rem;
+            font-weight: 700;
+            color: var(--dl-text-secondary,#64748b);
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-bottom: 4px;
+        }
+
+    .meta-required-star {
+        color: #e84f26;
+        margin-left: 3px;
+    }
+
+    .meta-type-hint {
+        font-size: .68rem;
+        color: var(--dl-text-muted,#94a3b8);
+        margin-top: 3px;
     }
 </style>
 
+<div class="dl-wrapper">
 
-    <!-- HEADER -->
-    <div class="d-flex justify-content-between align-items-center p-2 mb-3">
-        <h4 class="fw-semibold mb-0">Documents</h4>
-
-        <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
-                <i class="bi bi-upload me-1"></i> Upload
+    <!-- ═══ HEADER ═══ -->
+    <div class="dl-header">
+        <div class="dl-title">
+            <div class="dl-title-icon"><i class="bi bi-folder2-open"></i></div>
+            Documents
+        </div>
+        <div class="dl-actions">
+            <button class="btn-dl btn-outline-dl" data-bs-toggle="modal" data-bs-target="#createFolderModal">
+                <i class="bi bi-folder-plus"></i> New Folder
             </button>
-
-            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#createFolderModal">
-                <i class="bi bi-folder-plus me-1"></i> New Folder
+            <button class="btn-dl btn-primary-dl" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="bi bi-cloud-upload"></i> Upload
             </button>
-
         </div>
     </div>
 
-    <!-- BREADCRUMB -->
-    <nav class="mb-3">
-        <span class="text-muted">Documents</span>
-        <span id="breadcrumb"></span>
+    <!-- ═══ BREADCRUMB ═══ -->
+    <nav class="dl-breadcrumb">
+        <i class="bi bi-house-door"></i>
+        <a href="@Url.Action("Index","Home")">Home</a>
+        <span class="dl-breadcrumb-sep">›</span>
+        <span id="breadcrumbTrail">Documents</span>
     </nav>
 
-    @*<h5 class="fw-semibold mb-3">Library: @ViewBag.LibraryUrl</h5>*@
-
-    @if (items != null && items.Any())
-    {
-        var allColumns = items.SelectMany(i => i.Metadata.Keys).Distinct().ToList();
-
-        <!-- TABLE WRAPPER -->
-        <table id="documentsTable" class="table table-hover table-bordered align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    @foreach (var col in allColumns)
-                    {
-                        <th>@col</th>
-                    }
-                    <th>Actions</th>
-                </tr>
-                <tr>
-                    <th><input type="text" class="form-control form-control-sm" placeholder="Search Name" /></th>
-                    <th>
-                        <select class="form-select form-select-sm">
-                            <option value="">All</option>
-                            <option value="File">File</option>
-                            <option value="Folder">Folder</option>
-                        </select>
-                    </th>
-
-                    @foreach (var col in allColumns)
-                    {
-                        <th><input type="text" class="form-control form-control-sm" placeholder="Search" /></th>
-                    }
-
-                    <th></th>
-                </tr>
-            </thead>
-
-            <tbody>
-                @foreach (var item in items)
+    <!-- ═══ TABLE CARD ═══ -->
+    <div class="dl-card">
+        <div class="dl-card-toolbar">
+            <div class="dl-stat-pills">
+                @if (items != null)
                 {
-
-
-                    <tr>
-                        <!-- NAME COLUMN (ONE TD ONLY) -->
-                        <td>
-                            @if (item.IsFolder)
-                            {
-                                <a href="@Url.Action("DocumentLibrary","Home", new { libraryUrl = item.Url })"
-                                   class="text-decoration-none">
-                                    <i class="bi bi-folder-fill text-warning me-1"></i>
-                                    <small>@item.Name</small>
-                                </a>
-                            }
-                            else
-                            {
-                                <i class="bi bi-file-earmark-text me-1 text-secondary"></i>
-                                @item.Name
-                            }
-                        </td>
-
-                        <!-- TYPE COLUMN -->
-                        <td>@(item.IsFolder ? "Folder" : "File")</td>
-
-                        <!-- METADATA -->
-                        @foreach (var col in allColumns)
-                        {
-                            <td>@(item.Metadata.ContainsKey(col) ? item.Metadata[col] : "")</td>
-                        }
-                        <!-- ACTIONS -->
-                        <td class="text-center">
-                            @if (!item.IsFolder)
-                            {
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-light" data-bs-toggle="dropdown">
-                                        <i class="bi bi-three-dots-vertical"></i>
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        <li>
-                                            <a class="dropdown-item" href="javascript:void(0)"
-                                               onclick="openViewer('@item.Url')">
-                                                <i class="bi bi-eye me-2"></i> View
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item text-primary"
-                                               href="javascript:void(0)"
-                                               onclick="submitForApproval('@item.Url', '@item.Name', @ViewBag.CurrentWorkflowId)">
-                                                <i class="bi bi-send me-2"></i> Send for Approval
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item text-warning"
-                                               href="javascript:void(0)"
-                                               onclick="renameItem('@item.Url', false, '@item.Name')">
-                                                <i class="bi bi-pencil me-2"></i> Edit
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item text-muted"
-                                               href="javascript:void(0)"
-                                               onclick="showVersions('@item.Url')">
-                                                <i class="bi bi-clock-history me-2"></i> Versions
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item text-danger"
-                                               href="javascript:void(0)"
-                                               onclick="deleteItem('@item.Url', false)">
-                                                <i class="bi bi-trash me-2"></i> Delete
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-light" data-bs-toggle="dropdown">
-                                        <i class="bi bi-three-dots-vertical"></i>
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        <li>
-                                            <a class="dropdown-item"
-                                               href="javascript:void(0)"
-                                               onclick="shareItem('@item.Url')">
-                                                <i class="bi bi-share me-2"></i> Share
-                                            </a>
-                                        </li>
-                                       
-
-                                        <li>
-                                            <a class="dropdown-item text-warning"
-                                               href="javascript:void(0)"
-                                               onclick="renameItem('@item.Url', false, '@item.Name')">
-                                                <i class="bi bi-pencil me-2"></i> Edit
-                                            </a>
-                                        </li>
-
-                                        <li>
-                                            <a class="dropdown-item text-danger"
-                                               href="javascript:void(0)"
-                                               onclick="deleteItem('@item.Url', false)">
-                                                <i class="bi bi-trash me-2"></i> Delete
-                                            </a>
-                                        </li>
-                                    </ul>
-
-                                </div>
-
-                            }
-                        </td>
-                    </tr>
+                    var folderCount = items.Count(i => i.IsFolder);
+                    var fileCount = items.Count(i => !i.IsFolder);
+                    <span class="dl-stat-pill folders">
+                        <i class="bi bi-folder me-1"></i>@folderCount folder@(folderCount != 1 ? "s" : "")
+                    </span>
+                    <span class="dl-stat-pill files">
+                        <i class="bi bi-file me-1"></i>@fileCount file@(fileCount != 1 ? "s" : "")
+                    </span>
                 }
-            </tbody>
+            </div>
+            <small style="font-size:.75rem;color:var(--dl-text-muted);">@ViewBag.LibraryUrl</small>
+        </div>
 
-        </table>
+        @if (items != null && items.Any())
+        {
+            <div style="overflow-x:auto;">
+                <table id="documentsTable" class="table" style="margin:0;width:100%;">
+                    <thead>
+                        <tr>
+                            <th style="min-width:220px;">Name</th>
+                            <th style="min-width:80px;">Type</th>
+                            @foreach (var col in allColumns)
+                            {
+                                <th style="min-width:130px;">@col</th>
+                            }
+                            <th style="width:60px;">Actions</th>
+                        </tr>
+                        <tr>
+                            <th><input type="text" placeholder="Filter name…" /></th>
+                            <th>
+                                <select>
+                                    <option value="">All</option>
+                                    <option value="File">File</option>
+                                    <option value="Folder">Folder</option>
+                                </select>
+                            </th>
+                            @foreach (var col in allColumns)
+                            {
+                                <th><input type="text" placeholder="Filter…" /></th>
+                            }
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in items)
+                        {
+                            var ext = item.IsFolder ? "" : System.IO.Path.GetExtension(item.Name).ToLower();
+                            var iconClass = item.IsFolder ? "folder" :
+                                ext == ".pdf" ? "file-pdf" :
+                                (ext == ".doc" || ext == ".docx") ? "file-word" :
+                                (ext == ".xls" || ext == ".xlsx") ? "file-excel" :
+                                (ext == ".ods") ? "file-excel" :
+                                (ext == ".ppt" || ext == ".pptx") ? "file-ppt" :
+                                (ext == ".jpg" || ext == ".jpeg" || ext == ".png" ||
+                                 ext == ".gif" || ext == ".webp" || ext == ".svg") ? "file-img" :
+                                (ext == ".mp4" || ext == ".avi" || ext == ".mov" ||
+                                 ext == ".mkv" || ext == ".webm" || ext == ".wmv") ? "file-video" :
+                                (ext == ".mp3" || ext == ".wav" || ext == ".flac" ||
+                                 ext == ".aac" || ext == ".ogg" || ext == ".m4a") ? "file-audio" :
+                                (ext == ".csv") ? "file-csv" :
+                                (ext == ".zip" || ext == ".rar" || ext == ".7z" || ext == ".tar" || ext == ".gz") ? "file-zip" :
+                                "file";
+
+                            var iconGlyph = item.IsFolder ? "bi-folder-fill" :
+                                ext == ".pdf" ? "bi-file-earmark-pdf" :
+                                (ext == ".doc" || ext == ".docx") ? "bi-file-earmark-word" :
+                                (ext == ".xls" || ext == ".xlsx") ? "bi-file-earmark-excel" :
+                                (ext == ".ods") ? "bi-file-earmark-excel" :
+                                (ext == ".ppt" || ext == ".pptx") ? "bi-file-earmark-slides" :
+                                (ext == ".jpg" || ext == ".jpeg" || ext == ".png" ||
+                                 ext == ".gif" || ext == ".webp" || ext == ".svg") ? "bi-file-earmark-image" :
+                                (ext == ".mp4" || ext == ".avi" || ext == ".mov" ||
+                                 ext == ".mkv" || ext == ".webm" || ext == ".wmv") ? "bi-file-earmark-play" :
+                                (ext == ".mp3" || ext == ".wav" || ext == ".flac" ||
+                                 ext == ".aac" || ext == ".ogg" || ext == ".m4a") ? "bi-file-earmark-music" :
+                                (ext == ".csv") ? "bi-file-earmark-spreadsheet" :
+                                (ext == ".zip" || ext == ".rar" || ext == ".7z" || ext == ".tar" || ext == ".gz") ? "bi-file-earmark-zip" :
+                                "bi-file-earmark-text";
+
+                            <tr>
+                                <!-- Name -->
+                                <td>
+                                    <div class="item-name-cell">
+                                        <div class="item-icon @iconClass">
+                                            <i class="bi @iconGlyph"></i>
+                                        </div>
+                                        <div>
+                                            @if (item.IsFolder)
+                                            {
+                                                <a class="item-name-link"
+                                                   href="@Url.Action("DocumentLibrary","Home", new { libraryUrl = item.Url })">
+                                                    @item.Name
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="item-name-link" onclick="openViewer('@item.Url', '@ext')">
+                                                    @System.IO.Path.GetFileNameWithoutExtension(item.Name)
+                                                </span>
+                                                if (!string.IsNullOrEmpty(ext))
+                                                {
+                                                    <span class="item-ext-badge">@ext.TrimStart('.')</span>
+                                                }
+                                            }
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Type -->
+                                <td>
+                                    <span class="type-badge @(item.IsFolder ? "folder" : "file")">
+                                        @(item.IsFolder ? "Folder" : "File")
+                                    </span>
+                                </td>
+
+                                <!-- Dynamic metadata columns -->
+                                @foreach (var col in allColumns)
+                                {
+                                    <td style="color:var(--dl-text-secondary);font-size:.8rem;">
+                                        @(item.Metadata.ContainsKey(col) ? item.Metadata[col] : "")
+                                    </td>
+                                }
+
+                                <!-- Actions -->
+                                <td>
+                                    <div class="dropdown d-flex justify-content-center">
+                                        <button class="action-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="bi bi-three-dots" style="font-size:.8rem;"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            @if (!item.IsFolder)
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="javascript:void(0)"
+                                                       onclick="openViewer('@item.Url', '@ext')">
+                                                        <i class="bi bi-eye"></i> View
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item info" href="javascript:void(0)"
+                                                       onclick="editMetadata('@item.Url', false, '@item.Name')">
+                                                        <i class="bi bi-tags"></i> Properties
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="javascript:void(0)"
+                                                       onclick="submitForApproval('@item.Url','@item.Name',@ViewBag.CurrentWorkflowId)">
+                                                        <i class="bi bi-send"></i> Send for Approval
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item warning" href="javascript:void(0)"
+                                                       onclick="renameItem('@item.Url', false, '@item.Name')">
+                                                        <i class="bi bi-pencil"></i> Rename
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="javascript:void(0)"
+                                                       onclick="showVersions('@item.Url')">
+                                                        <i class="bi bi-clock-history"></i> Versions
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="javascript:void(0)"
+                                                       onclick="shareItem('@item.Url')">
+                                                        <i class="bi bi-share"></i> Share
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item danger" href="javascript:void(0)"
+                                                       onclick="deleteItem('@item.Url', false)">
+                                                        <i class="bi bi-trash"></i> Delete
+                                                    </a>
+                                                </li>
+                                            }
+                                            else
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item info" href="javascript:void(0)"
+                                                       onclick="editMetadata('@item.Url', true, '@item.Name')">
+                                                        <i class="bi bi-tags"></i> Properties
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item warning" href="javascript:void(0)"
+                                                       onclick="renameItem('@item.Url', true, '@item.Name')">
+                                                        <i class="bi bi-pencil"></i> Rename
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="javascript:void(0)"
+                                                       onclick="shareItem('@item.Url')">
+                                                        <i class="bi bi-share"></i> Share
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item danger" href="javascript:void(0)"
+                                                       onclick="deleteItem('@item.Url', true)">
+                                                        <i class="bi bi-trash"></i> Delete
+                                                    </a>
+                                                </li>
+                                            }
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="dl-empty">
+                <div class="dl-empty-icon"><i class="bi bi-folder2-open"></i></div>
+                <h6>This folder is empty</h6>
+                <p>Upload files or create a folder to get started.</p>
+            </div>
+        }
+    </div>
+</div>
 
 
-    }
-    else
-    {
-        <p class="text-muted">This library is empty.</p>
-    }
-
-
-<!-- VIEW MODAL -->
+<!-- ══════════════════════════════════════════════
+     MODAL: FILE VIEWER
+══════════════════════════════════════════════ -->
 <div class="modal fade" id="fileViewerModal" tabindex="-1">
-
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Document Viewer</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header" style="padding:12px 20px;">
+                <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                    <div id="viewerFileIcon" style="width:32px;height:32px;border-radius:7px;background:var(--dl-accent-light,#fff3f0);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">
+                        <i class="bi bi-file-earmark" style="color:var(--dl-accent,#e84f26);"></i>
+                    </div>
+                    <div style="min-width:0;">
+                        <h6 class="modal-title mb-0" id="viewerTitle" style="font-size:.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Document Viewer</h6>
+                        <div id="viewerSubtitle" style="font-size:.68rem;color:var(--dl-text-muted);font-family:monospace;"></div>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:12px;">
+                    <a id="viewerDownloadBtn" href="#" download
+                       style="padding:5px 12px;border-radius:6px;background:var(--surface-subtle,#f8fafc);border:1px solid var(--border-light,#e2e8f0);font-size:.75rem;font-weight:600;color:var(--dl-text-secondary);text-decoration:none;display:flex;align-items:center;gap:5px;">
+                        <i class="bi bi-download"></i> Download
+                    </a>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
-
-            <div class="modal-body p-0" style="height:75vh;">
-                <iframe id="fileViewerFrame"
-                        src=""
-                        style="width:100%; height:100%; border:none;">
-                </iframe>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="fileViewerModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Document Viewer</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <div class="modal-body p-0">
-                <iframe id="fileViewerFrame"
-                        src=""
-                        style="width:100%; border:none; height:600px;">
-                </iframe>
+            <div class="modal-body p-0" style="height:75vh;overflow:hidden;">
+                <div id="viewerContent" style="width:100%;height:100%;overflow:auto;"></div>
             </div>
         </div>
     </div>
 </div>
 
 
-
-
+<!-- ══════════════════════════════════════════════
+     MODAL: UPLOAD
+══════════════════════════════════════════════ -->
 <div class="modal fade" id="uploadModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Upload Document</h5>
-                <button class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <div class="modal-body">
-                <input type="file" id="uploadFile" class="form-control" />
-            </div>
-
-            <div class="modal-footer">
-                <button class="btn btn-primary" onclick="uploadFile()">Upload</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-<div class="modal fade" id="createFolderModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Create Folder</h5>
-                <button class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <div class="modal-body">
-                <input type="text" id="folderName" class="form-control" placeholder="Folder name" />
-            </div>
-
-            <div class="modal-footer">
-                <button class="btn btn-primary" onclick="createFolder()">Create</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="shareModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="bi bi-share me-2"></i> Share
+                    <i class="bi bi-cloud-upload me-2" style="color:var(--dl-accent);"></i>Upload Files
                 </h5>
-                <button class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
+            <div class="modal-body">
+                <div id="dropZone">
+                    <div class="drop-icon"><i class="bi bi-cloud-arrow-up"></i></div>
+                    <p><strong>Drag &amp; drop files here</strong></p>
+                    <p style="margin-top:4px;color:var(--dl-text-muted);font-size:.78rem;">or click to browse</p>
+                    <input type="file" id="fileInput" multiple style="display:none;" />
+                </div>
+                <div id="fileListContainer" style="display:none;margin-top:16px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <span style="font-size:.8rem;font-weight:600;">
+                            Selected: <span id="fileCount">0</span> file(s)
+                        </span>
+                        <button class="btn-dl btn-ghost-dl" style="font-size:.75rem;" onclick="clearFileList()">
+                            <i class="bi bi-x-circle me-1"></i>Clear all
+                        </button>
+                    </div>
+                    <div id="fileList"></div>
+                    <div style="font-size:.75rem;color:var(--dl-text-muted);margin-top:6px;font-family:var(--dl-font-mono);">
+                        Total: <span id="totalSize">0 MB</span>
+                    </div>
+                </div>
+                <div id="uploadProgressContainer" style="display:none;margin-top:16px;">
+                    <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--dl-text-secondary);margin-bottom:5px;">
+                        <span id="uploadingFileName">Uploading…</span>
+                        <span id="uploadPct">0%</span>
+                    </div>
+                    <div class="progress">
+                        <div id="uploadProgressBar" class="progress-bar" style="width:0%"></div>
+                    </div>
+                </div>
+                <div id="uploadResultsContainer" style="display:none;margin-top:16px;">
+                    <p style="font-size:.8rem;font-weight:600;margin-bottom:8px;">Upload Results</p>
+                    <div id="uploadResults"></div>
+                </div>
+            </div>
+            <div class="modal-footer" id="uploadModalFooter">
+                <button type="button" class="btn-dl btn-outline-dl" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn-dl btn-primary-dl" id="uploadBtn" onclick="startUpload()" style="display:none;">
+                    <i class="bi bi-cloud-upload me-1"></i>Upload
+                </button>
+                <button type="button" class="btn-dl btn-outline-dl" id="closeBtn" onclick="location.reload()" style="display:none;">
+                    <i class="bi bi-check-lg me-1"></i>Done
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
+
+<!-- ══════════════════════════════════════════════
+     MODAL: CREATE FOLDER
+══════════════════════════════════════════════ -->
+<div class="modal fade" id="createFolderModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:400px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-folder-plus me-2" style="color:var(--dl-folder-color);"></i>New Folder
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">Folder Name</label>
+                <input type="text" id="folderName" class="form-control" placeholder="e.g. Project Documents" />
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-dl btn-outline-dl" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn-dl btn-primary-dl" onclick="createFolder()">
+                    <i class="bi bi-folder-plus me-1"></i>Create
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     MODAL: PROPERTIES / METADATA
+══════════════════════════════════════════════ -->
+<div class="modal fade" id="metadataModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:480px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-tags me-2" style="color:var(--dl-info);"></i>
+                    <span id="metadataModalTitle">Properties</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="max-height:65vh;overflow-y:auto;">
+                <div id="metadataFieldsContainer">
+                    <div style="text-align:center;padding:30px;color:var(--dl-text-muted);">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                        <span style="margin-left:8px;font-size:.82rem;">Loading fields…</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-dl btn-outline-dl" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn-dl btn-primary-dl" onclick="saveMetadata()">
+                    <i class="bi bi-save me-1"></i>Save Properties
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     MODAL: SHARE
+══════════════════════════════════════════════ -->
+<div class="modal fade" id="shareModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:440px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-share me-2" style="color:var(--dl-accent);"></i>Share
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
             <div class="modal-body">
                 <label class="form-label">Add people</label>
-                <input type="text"
-                       id="shareUser"
-                       class="form-control"
-                       placeholder="Search name or username"
-                       autocomplete="off" />
-
-                <ul class="list-group position-absolute w-100 d-none"
-                    id="userResults"
-                    style="z-index:1056; max-height:200px; overflow:auto;">
-                </ul>
-
-                <label class="form-label mt-3">Permission</label>
+                <div style="position:relative;">
+                    <input type="text" id="shareUser" class="form-control"
+                           placeholder="Search name or email…" autocomplete="off" />
+                    <ul class="list-group position-absolute w-100 d-none" id="userResults"
+                        style="z-index:9999;top:100%;max-height:200px;overflow-y:auto;"></ul>
+                </div>
+                <label class="form-label mt-3">Permission level</label>
                 <select id="shareRole" class="form-select">
                     <option value="Read">Can view</option>
                     <option value="Edit">Can edit</option>
                 </select>
-
-                <button class="btn btn-primary mt-3 w-100" onclick="grantAccess()">
-                    Share
+                <button type="button" class="btn-dl btn-primary-dl mt-3 w-100" onclick="grantAccess()">
+                    <i class="bi bi-share me-1"></i>Share
                 </button>
-
-                <hr />
-
-                <label class="form-label">Link</label>
-                <div class="input-group">
+                <hr style="border-color:var(--dl-border);margin:16px 0;">
+                <label class="form-label">Shareable link</label>
+                <div class="share-link-group">
                     <input type="text" id="shareLink" class="form-control" readonly />
-                    <button class="btn btn-outline-secondary" onclick="copyShareLink()">
+                    <button class="btn-dl btn-outline-dl" onclick="copyShareLink()" title="Copy link">
                         <i class="bi bi-clipboard"></i>
                     </button>
                 </div>
-
-                <small class="text-muted mt-2 d-block">
-                    Access is controlled by SharePoint permissions
-                </small>
+                <p style="font-size:.73rem;color:var(--dl-text-muted);margin-top:6px;">
+                    <i class="bi bi-info-circle me-1"></i>Access is controlled by SharePoint permissions.
+                </p>
             </div>
-
         </div>
     </div>
 </div>
 
+
+<!-- ══════════════════════════════════════════════
+     MODAL: VERSIONS
+══════════════════════════════════════════════ -->
+<div class="modal fade" id="versionsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width:500px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-clock-history me-2" style="color:var(--dl-accent);"></i>File Versions
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="versionsList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════ -->
 <script>
-    function submitForApproval(itemUrl, itemName, workflowId) {
-        Swal.fire({
-            title: 'Send for Approval?',
-            showCancelButton: true,
-            confirmButtonText: 'Yes'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.post('/Workflow/SubmitForApproval',
-                    { itemUrl: itemUrl, itemName: itemName, workflowId: workflowId },
-                    function (res) {
-                        if (res.success) {
-                            Swal.fire('Submitted!', '', 'success').then(() => location.reload());
-                        } else {
-                            Swal.fire('Error', res.message, 'error');
-                        }
-                    });
-            }
-        });
-    }
+const _libraryUrl = '@ViewBag.LibraryUrl';
 
-    function openViewer(fileUrl) {
-
-        const restrictedPath = "/Legal Services Departments/DEMO POLICIES";
-        const isRestricted = fileUrl.includes(restrictedPath);
-
-        const modal = new bootstrap.Modal(document.getElementById("fileViewerModal"));
-        const modalBody = $('#fileViewerModal .modal-body');
-
-        // Show loading spinner
-        modalBody.html('<div style="text-align:center;padding:50px;"><div class="spinner-border" role="status"></div><p>Loading...</p></div>');
-        modal.show();
-
-        $.ajax({
-            url: '/Home/ViewDocument',
-            type: 'POST',
-            data: JSON.stringify({ fileUrl: fileUrl }),
-            contentType: 'application/json',
-            xhrFields: { responseType: 'blob' }, // important: fetch as blob
-            success: function (blob) {
-
-                // Create a Blob URL
-                const fileURL = URL.createObjectURL(blob);
-
-                if (isRestricted) {
-
-                    // PDF.js viewer
-                    modalBody.html(`
-                    <div id="pdfViewerContainer" style="width:100%; height:100%; position:relative;">
-                        <div id="scrollOverlay"
-                            style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:10;cursor:default;">
-                        </div>
-                    </div>
-                `);
-
-                    const container = document.getElementById('pdfViewerContainer');
-                    const overlay = document.getElementById('scrollOverlay');
-
-                    overlay.addEventListener('contextmenu', e => e.preventDefault());
-
-                    pdfjsLib.GlobalWorkerOptions.workerSrc =
-                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-
-                    pdfjsLib.getDocument({ url: fileURL }).promise.then(pdf => {
-                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                            pdf.getPage(pageNum).then(page => {
-                                const canvas = document.createElement('canvas');
-                                container.appendChild(canvas);
-
-                                const viewport = page.getViewport({ scale: 1.2 });
-                                canvas.height = viewport.height;
-                                canvas.width = viewport.width;
-
-                                const context = canvas.getContext('2d');
-                                page.render({ canvasContext: context, viewport: viewport });
-                            });
-                        }
-                    });
-
-                } else {
-
-                    // Normal iframe
-                    modalBody.html(`<iframe id="fileViewerFrame" style="width:100%;height:80vh;border:none;"></iframe>`);
-                    $("#fileViewerFrame").attr("src", fileURL);
-                }
-            },
-            error: function (xhr) {
-                Swal.fire("", "Error: " + xhr.responseText, "error");
-                modal.hide();
-            }
-        });
-    }
-
-
-    function showVersions(fileUrl) {
-        $.ajax({
-            url: '/Home/GetFileVersions',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ fileUrl: fileUrl }),
-            success: function (res) {
-                if (!res.success) {
-                    alert(res.message);
-                    return;
-                }
-
-                const list = $("#versionsList");
-                list.empty();
-
-                res.versions.forEach(function (v) {
-                    const li = $(`
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>Version:</strong> ${v.VersionLabel} <br/>
-                            <small>By ${v.CreatedBy} on ${new Date(v.Created).toLocaleString()}</small>
-                        </div>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="openViewer('${v.Url}?version=${v.VersionLabel}')">
-                                View
-                            </button>
-                            <a class="btn btn-sm btn-outline-success" href="${v.Url}?version=${v.VersionLabel}" download>
-                                Download
-                            </a>
-                        </div>
-                    </li>
-                `);
-                    list.append(li);
-                });
-
-                var modal = new bootstrap.Modal(document.getElementById('versionsModal'));
-                modal.show();
-            },
-            error: function (xhr) {
-                Swal.fire("", "error " + xhr.responseText, "error");
-            }
-        });
-    }
-    function shareItem(itemUrl) {
-        $('#shareLink').val(window.location.origin + itemUrl);
-        $('#shareUser').val('');
-
-        new bootstrap.Modal(document.getElementById('shareModal')).show();
-
-        $('#shareModal').data('itemUrl', itemUrl);
-    }
-
-    function grantAccess() {
-        const user = $('#shareUser').val();
-        const role = $('#shareRole').val();
-        const itemUrl = $('#shareModal').data('itemUrl');
-
-        if (!user) {
-            Swal.fire('Error', 'Enter a user', 'error');
-            return;
-        }
-
-        $.ajax({
-            url: '/Home/GrantItemAccess',
-            type: 'POST',
-            data: {
-                itemUrl: itemUrl,
-                userLogin: user,
-                role: role
-            },
-            success: function (res) {
-                if (!res.success) {
-                    Swal.fire('Error', res.message, 'error');
-                    return;
-                }
-
-                Swal.fire('Shared', 'Access granted successfully', 'success');
-            },
-            error: function () {
-                Swal.fire('Error', 'Unable to share item', 'error');
-            }
-        });
-    }
-
-    function copyShareLink() {
-        const input = document.getElementById('shareLink');
-        input.select();
-        navigator.clipboard.writeText(input.value);
-    }
-    let userSearchTimer = null;
-
-    $('#shareUser').on('keyup', function () {
-        const query = $(this).val().trim();
-
-        clearTimeout(userSearchTimer);
-
-        if (query.length < 2) {
-            $('#userResults').addClass('d-none').empty();
-            return;
-        }
-
-        userSearchTimer = setTimeout(() => {
-            $.ajax({
-                url: '/Home/SearchUsers',
-                type: 'GET',
-                data: { term: query },
-                success: function (res) {
-                    const list = $('#userResults');
-                    list.empty();
-
-                    if (!res || res.length === 0) {
-                        list.addClass('d-none');
-                        return;
-                    }
-
-                    res.forEach(u => {
-                        list.append(`
-                        <li class="list-group-item list-group-item-action"
-                            onclick="selectUser('${u.Login}')">
-                            <strong>${u.DisplayName}</strong><br/>
-                            <small class="text-muted">${u.Login}</small>
-                        </li>
-                    `);
-                    });
-
-                    list.removeClass('d-none');
-                }
-            });
-        }, 300); // debounce
+// ── BREADCRUMB ──────────────────────────────────────────────────────────
+(function () {
+    const parts = (_libraryUrl || '').split('/').filter(Boolean);
+    const trail = document.getElementById('breadcrumbTrail');
+    if (!trail || !parts.length) return;
+    let html = '', built = '';
+    parts.forEach((seg, i) => {
+        built += '/' + seg;
+        const last = i === parts.length - 1;
+        html += last
+            ? `<span style="color:var(--dl-text-primary);font-weight:500;">${seg}</span>`
+            : `<a href="/Home/DocumentLibrary?libraryUrl=${encodeURIComponent(built)}">${seg}</a>
+               <span class="dl-breadcrumb-sep">›</span>`;
     });
+    trail.innerHTML = html;
+})();
 
-    function selectUser(login) {
-        $('#shareUser').val(login);
-        $('#userResults').addClass('d-none').empty();
+
+// ══════════════════════════════════════════════
+//  DOCUMENT VIEWER
+// ══════════════════════════════════════════════
+
+// Extension groupings
+const EXT = {
+    pdf:     ['.pdf'],
+    word:    ['.docx', '.doc'],
+    excel:   ['.xlsx', '.xls', '.ods'],
+    ppt:     ['.pptx', '.ppt'],          // Office Online iframe
+    image:   ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.tiff', '.tif', '.ico', '.avif'],
+    text:    ['.txt', '.log', '.md', '.json', '.xml', '.yaml', '.yml', '.ini', '.cfg', '.sh', '.bat', '.ps1', '.py', '.js', '.ts', '.css', '.html', '.htm', '.rtf'],
+    csv:     ['.csv', '.tsv'],
+    video:   ['.mp4', '.webm', '.ogv', '.mov'],        // browser-native
+    audio:   ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.opus'],
+    archive: ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'],
+};
+
+// Icon glyph per ext group
+const EXT_ICON = {
+    pdf: 'bi-file-earmark-pdf', word: 'bi-file-earmark-word',
+    excel: 'bi-file-earmark-excel', ppt: 'bi-file-earmark-slides',
+    image: 'bi-file-earmark-image', text: 'bi-file-earmark-code',
+    csv: 'bi-file-earmark-spreadsheet', video: 'bi-file-earmark-play',
+    audio: 'bi-file-earmark-music', archive: 'bi-file-earmark-zip',
+};
+
+function getExtGroup(ext) {
+    for (const [group, exts] of Object.entries(EXT)) {
+        if (exts.includes(ext)) return group;
     }
+    return 'other';
+}
 
-</script>
-<script>
-    $(document).ready(function () {
+let _currentBlobUrl = null;
 
-        const table = $('#documentsTable').DataTable({
-            paging: true,
-            searching: true,
-            ordering: true,
-            info: true,
-            responsive: true,
-            orderCellsTop: true,
-            fixedHeader: true,
-            columnDefs: [
-                { orderable: false, targets: -1 } // Actions column
-            ]
-        });
+function openViewer(fileUrl, extHint) {
+    const fileName = fileUrl.split('/').pop();
+    const ext      = (extHint || ('.' + fileName.split('.').pop())).toLowerCase();
+    const group    = getExtGroup(ext);
 
-        // Column filters
-        $('#documentsTable thead tr:eq(1) th').each(function (i) {
-            $('input, select', this).on('keyup change clear', function () {
-                if (table.column(i).search() !== this.value) {
-                    table.column(i).search(this.value).draw();
-                }
-            });
-        });
-    });
+    // Update modal header
+    const iconGlyph = EXT_ICON[group] || 'bi-file-earmark';
+    document.getElementById('viewerTitle').textContent    = fileName;
+    document.getElementById('viewerSubtitle').textContent = ext.replace('.', '').toUpperCase() + ' file';
+    document.getElementById('viewerFileIcon').innerHTML   = `<i class="bi ${iconGlyph}" style="color:var(--dl-accent,#e84f26);"></i>`;
 
-    // ===================== UPLOAD FILE =====================
-    function uploadFile() {
-        const input = document.getElementById('uploadFile');
-        if (!input || input.files.length === 0) {
-            alert("Please select a file");
-            return;
+    const vc = document.getElementById('viewerContent');
+    vc.innerHTML = `<div style="text-align:center;padding:60px;color:var(--dl-text-muted);">
+        <div class="spinner-border" role="status"></div>
+        <p style="margin-top:12px;font-size:.83rem;">Loading ${ext} file…</p>
+    </div>`;
+
+    const modal = new bootstrap.Modal(document.getElementById('fileViewerModal'));
+    modal.show();
+
+    // Cleanup previous blob URL when modal closes
+    document.getElementById('fileViewerModal').addEventListener('hidden.bs.modal', () => {
+        if (_currentBlobUrl) { URL.revokeObjectURL(_currentBlobUrl); _currentBlobUrl = null; }
+    }, { once: true });
+
+    // Fetch the file as a blob
+    $.ajax({
+        url: '/Home/ViewDocument',
+        type: 'POST',
+        data: JSON.stringify({ fileUrl }),
+        contentType: 'application/json',
+        xhrFields: { responseType: 'blob' },
+        success(blob) {
+            _currentBlobUrl = URL.createObjectURL(blob);
+            document.getElementById('viewerDownloadBtn').href     = _currentBlobUrl;
+            document.getElementById('viewerDownloadBtn').download = fileName;
+            try { dispatchViewer(group, ext, _currentBlobUrl, blob, vc, fileUrl, fileName); }
+            catch (e) {
+                vc.innerHTML = `<div class="viewer-error"><strong>Render error:</strong> ${escapeHtml(e.message)}</div>`;
+            }
+        },
+        error(xhr) {
+            let msg = 'Failed to load file.';
+            try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch {}
+            vc.innerHTML = `<div class="viewer-error"><strong>${escapeHtml(msg)}</strong></div>`;
         }
+    });
+}
 
-        const formData = new FormData();
-        formData.append("file", input.files[0]);
-        formData.append("libraryUrl", '@ViewBag.LibraryUrl');
+function dispatchViewer(group, ext, blobUrl, blob, container, originalUrl, fileName) {
+    switch (group) {
+        case 'pdf':     return renderPDF(blobUrl, container);
+        case 'word':    return renderWord(blob, container);
+        case 'excel':   return renderExcel(blob, container);
+        case 'csv':     return renderCSV(blob, container, ext === '.tsv');
+        case 'image':   return renderImage(blobUrl, container, fileName);
+        case 'text':    return renderText(blob, container, ext);
+        case 'video':   return renderVideo(blobUrl, container, ext);
+        case 'audio':   return renderAudio(blobUrl, container, ext);
+        case 'ppt':     return renderPPT(container, fileName, ext, blobUrl, originalUrl);
+        case 'archive':
+        default:        return renderDownloadOnly(container, fileName, ext, blobUrl);
+    }
+}
 
-        $.ajax({
-            url: '/Home/UploadFile',
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function (res) {
-                if (!res || res.success !== true) {
-                    alert(res?.message || "Upload failed");
-                    return;
-                }
-                location.reload();
-            },
-            error: function (xhr) {
-                Swal.fire("", "error " + xhr.responseText, "error");
+// ── PDF ─────────────────────────────────────────────────────────────────
+function renderPDF(blobUrl, container) {
+    container.innerHTML = `<div id="pdfViewerContainer"></div>`;
+    const pdfC = document.getElementById('pdfViewerContainer');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    pdfjsLib.getDocument({ url: blobUrl }).promise.then(pdf => {
+        const renderPage = p => pdf.getPage(p).then(page => {
+            const canvas = document.createElement('canvas');
+            pdfC.appendChild(canvas);
+            const vp = page.getViewport({ scale: 1.4 });
+            canvas.height = vp.height; canvas.width = vp.width;
+            page.render({ canvasContext: canvas.getContext('2d'), viewport: vp });
+        });
+        for (let i = 1; i <= pdf.numPages; i++) renderPage(i);
+    }).catch(e => { pdfC.innerHTML = `<div class="viewer-error">PDF error: ${escapeHtml(e.message)}</div>`; });
+}
+
+// ── Word (.docx / .doc) ─────────────────────────────────────────────────
+function renderWord(blob, container) {
+    const r = new FileReader();
+    r.onload = e => mammoth.convertToHtml({ arrayBuffer: e.target.result })
+        .then(res => { container.innerHTML = `<div id="wordViewerContainer">${res.value}</div>`; })
+        .catch(e  => { container.innerHTML = `<div class="viewer-error">Word render error: ${escapeHtml(e.message)}</div>`; });
+    r.readAsArrayBuffer(blob);
+}
+
+// ── Excel ───────────────────────────────────────────────────────────────
+function renderExcel(blob, container) {
+    const r = new FileReader();
+    r.onload = e => {
+        try {
+            const wb   = XLSX.read(e.target.result, { type: 'array' });
+            // Build tab bar for multiple sheets
+            let tabs = '', sheets = '';
+            wb.SheetNames.forEach((name, i) => {
+                const html = XLSX.utils.sheet_to_html(wb.Sheets[name]);
+                tabs   += `<button class="excel-tab ${i===0?'active':''}" onclick="switchSheet(this,'sheet${i}')">${escapeHtml(name)}</button>`;
+                sheets += `<div id="sheet${i}" class="excel-sheet" style="${i>0?'display:none':''}">${html}</div>`;
+            });
+            container.innerHTML = `
+                <div style="background:#f0f4f8;padding:8px 12px;border-bottom:1px solid #ddd;display:flex;gap:4px;flex-wrap:wrap;">
+                    <style>.excel-tab{padding:4px 12px;border-radius:5px;border:1px solid #ccc;background:#fff;font-size:.74rem;font-weight:600;cursor:pointer;}
+                    .excel-tab.active{background:#217346;color:#fff;border-color:#217346;}</style>
+                    ${tabs}
+                </div>
+                <div id="excelViewerContainer">${sheets}</div>`;
+        } catch (ex) { container.innerHTML = `<div class="viewer-error">Excel error: ${escapeHtml(ex.message)}</div>`; }
+    };
+    r.readAsArrayBuffer(blob);
+}
+
+function switchSheet(btn, sheetId) {
+    document.querySelectorAll('.excel-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.excel-sheet').forEach(s => s.style.display = 'none');
+    btn.classList.add('active');
+    document.getElementById(sheetId).style.display = '';
+}
+
+// ── CSV / TSV ────────────────────────────────────────────────────────────
+function renderCSV(blob, container, isTsv) {
+    const r = new FileReader();
+    r.onload = e => {
+        const sep   = isTsv ? '\t' : ',';
+        const lines = e.target.result.replace(/\r/g, '').split('\n').filter(l => l.trim());
+        if (!lines.length) { container.innerHTML = '<p style="padding:20px;color:#888;">Empty file.</p>'; return; }
+
+        const parse = line => {
+            const cells = []; let cur = '', inQ = false;
+            for (const ch of line) {
+                if (ch === '"') { inQ = !inQ; }
+                else if (ch === sep && !inQ) { cells.push(cur); cur = ''; }
+                else cur += ch;
+            }
+            cells.push(cur);
+            return cells;
+        };
+
+        const headers = parse(lines[0]);
+        let html = `<table><thead><tr>${headers.map(h => `<th>${escapeHtml(h.trim())}</th>`).join('')}</tr></thead><tbody>`;
+        for (let i = 1; i < lines.length; i++) {
+            const cells = parse(lines[i]);
+            html += `<tr>${cells.map(c => `<td>${escapeHtml(c.trim())}</td>`).join('')}</tr>`;
+        }
+        html += '</tbody></table>';
+        container.innerHTML = `<div id="csvViewerContainer">${html}
+            <p style="font-size:.7rem;color:#888;padding:8px 12px;">${lines.length - 1} rows · ${headers.length} columns</p>
+        </div>`;
+    };
+    r.readAsText(blob);
+}
+
+// ── Image ────────────────────────────────────────────────────────────────
+function renderImage(blobUrl, container, fileName) {
+    container.innerHTML = `
+        <div style="text-align:center;padding:20px;background:#1a1a2e;min-height:300px;display:flex;align-items:center;justify-content:center;">
+            <img src="${blobUrl}" alt="${escapeHtml(fileName)}"
+                 style="max-width:100%;max-height:68vh;border-radius:6px;box-shadow:0 4px 24px rgba(0,0,0,.5);"
+                 onerror="this.parentElement.innerHTML='<p style=color:#888>Could not render image.</p>'" />
+        </div>`;
+}
+
+// ── Plain text / code ────────────────────────────────────────────────────
+function renderText(blob, container, ext) {
+    const r = new FileReader();
+    r.onload = e => {
+        const lang = { '.json':'json', '.xml':'xml', '.html':'html', '.htm':'html', '.css':'css',
+            '.js':'javascript', '.ts':'typescript', '.py':'python', '.sh':'bash', '.md':'markdown' }[ext] || '';
+        container.innerHTML = `<pre class="text-viewer">${escapeHtml(e.target.result)}</pre>`;
+    };
+    r.readAsText(blob);
+}
+
+// ── Video ────────────────────────────────────────────────────────────────
+function renderVideo(blobUrl, container, ext) {
+    const mime = { '.mp4':'video/mp4', '.webm':'video/webm', '.ogv':'video/ogg', '.mov':'video/mp4' }[ext] || 'video/mp4';
+    container.innerHTML = `
+        <div class="media-viewer">
+            <video controls autoplay style="max-height:68vh;max-width:100%;">
+                <source src="${blobUrl}" type="${mime}">
+                Your browser does not support this video format.
+            </video>
+        </div>`;
+}
+
+// ── Audio ────────────────────────────────────────────────────────────────
+function renderAudio(blobUrl, container, ext) {
+    const mime = { '.mp3':'audio/mpeg', '.wav':'audio/wav', '.ogg':'audio/ogg',
+        '.flac':'audio/flac', '.aac':'audio/aac', '.m4a':'audio/mp4', '.opus':'audio/ogg' }[ext] || 'audio/mpeg';
+    container.innerHTML = `
+        <div class="media-viewer">
+            <div style="font-size:3.5rem;opacity:.3;margin-bottom:8px;"><i class="bi bi-music-note-beamed"></i></div>
+            <audio controls autoplay style="width:100%;max-width:560px;">
+                <source src="${blobUrl}" type="${mime}">
+                Your browser does not support this audio format.
+            </audio>
+        </div>`;
+}
+
+// ── PowerPoint (.pptx / .ppt) — Office Online viewer ─────────────────────
+// Strategy: try Office Online embed using the SharePoint server-relative URL.
+// If the server URL isn't accessible publicly, fall back to a slide-by-slide
+// SheetJS parse of .pptx (text only) or a clean download card.
+function renderPPT(container, fileName, ext, blobUrl, originalUrl) {
+    // Build the absolute SP URL for Office Online
+    const absUrl = (window.location.origin + originalUrl).split('?')[0];
+    const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absUrl)}`;
+
+    container.innerHTML = `
+        <div style="position:relative;width:100%;height:100%;background:#2d2d2d;">
+            <!-- Loading placeholder shown while iframe loads -->
+            <div id="pptLoadingMsg" style="position:absolute;inset:0;display:flex;flex-direction:column;
+                 align-items:center;justify-content:center;color:#aaa;gap:12px;z-index:1;pointer-events:none;">
+                <div class="spinner-border text-secondary" role="status" style="width:28px;height:28px;border-width:2px;"></div>
+                <span style="font-size:.82rem;">Opening in Office Online…</span>
+            </div>
+            <iframe id="pptFrame"
+                src="${officeUrl}"
+                style="width:100%;height:100%;border:none;position:relative;z-index:2;"
+                allowfullscreen
+                onload="document.getElementById('pptLoadingMsg').style.display='none';"
+                onerror="pptIframeFallback('${escapeHtml(blobUrl)}','${escapeHtml(fileName)}','${ext}')">
+            </iframe>
+            <!-- Toolbar strip at bottom -->
+            <div style="position:absolute;bottom:0;left:0;right:0;z-index:3;
+                        background:rgba(0,0,0,.55);backdrop-filter:blur(6px);
+                        padding:6px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                <span style="font-size:.72rem;color:rgba(255,255,255,.6);">
+                    <i class="bi bi-info-circle me-1"></i>Powered by Microsoft Office Online
+                </span>
+                <a href="${blobUrl}" download="${escapeHtml(fileName)}"
+                   style="font-size:.73rem;color:#fff;background:rgba(255,255,255,.12);padding:4px 12px;
+                          border-radius:5px;text-decoration:none;display:flex;align-items:center;gap:5px;">
+                    <i class="bi bi-download"></i> Download
+                </a>
+            </div>
+        </div>`;
+}
+
+// Called if the Office Online iframe fails (e.g. intranet / no internet)
+function pptIframeFallback(blobUrl, fileName, ext) {
+    const vc = document.getElementById('viewerContent');
+    if (!vc) return;
+    vc.innerHTML = `
+        <div class="viewer-unsupported">
+            <div class="uns-icon"><i class="bi bi-file-earmark-slides"></i></div>
+            <h6>Office Online unavailable</h6>
+            <p style="font-size:.82rem;max-width:380px;">
+                The Office Online viewer could not load — this usually means the file is on an internal
+                network not accessible from the internet. Download the file to view it locally.
+            </p>
+            <a href="${blobUrl}" download="${escapeHtml(fileName)}" class="viewer-download-btn">
+                <i class="bi bi-download"></i> Download ${escapeHtml(fileName)}
+            </a>
+        </div>`;
+}
+
+// ── Download-only fallback (archives, unknown) ────────────────────────────
+function renderDownloadOnly(container, fileName, ext, blobUrl) {
+    const hints = {
+        '.pptx':'PowerPoint presentations cannot be rendered in the browser. Download to view in PowerPoint or upload to Office 365.',
+        '.ppt': 'Legacy PowerPoint files cannot be previewed. Download to open locally.',
+        '.zip': 'Archive files cannot be previewed. Download to extract.',
+        '.rar': 'RAR archives cannot be previewed. Download to extract.',
+        '.7z':  '7-Zip archives cannot be previewed. Download to extract.',
+    };
+    const hint = hints[ext] || `<strong>${ext.replace('.','').toUpperCase()}</strong> files cannot be previewed in the browser.`;
+    container.innerHTML = `
+        <div class="viewer-unsupported">
+            <div class="uns-icon"><i class="bi bi-file-earmark-x"></i></div>
+            <h6>Preview not available</h6>
+            <p style="font-size:.82rem;max-width:380px;">${hint}</p>
+            <a href="${blobUrl}" download="${escapeHtml(fileName)}" class="viewer-download-btn">
+                <i class="bi bi-download"></i> Download ${escapeHtml(fileName)}
+            </a>
+        </div>`;
+}
+
+function escapeHtml(t) { const d = document.createElement('div'); d.textContent = String(t||''); return d.innerHTML; }
+
+
+// ══════════════════════════════════════════════
+//  FILE UPLOAD
+// ══════════════════════════════════════════════
+let selectedFiles = [];
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('click',     () => fileInput.click());
+dropZone.addEventListener('dragover',  e  => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('dragover');
+    selectedFiles = Array.from(e.dataTransfer.files); renderFileList();
+});
+fileInput.addEventListener('change', e => { selectedFiles = Array.from(e.target.files); renderFileList(); });
+
+function renderFileList() {
+    const fc  = document.getElementById('fileListContainer');
+    const btn = document.getElementById('uploadBtn');
+    if (!selectedFiles.length) { fc.style.display = 'none'; btn.style.display = 'none'; return; }
+    document.getElementById('fileCount').textContent = selectedFiles.length;
+    let total = 0, html = '';
+    selectedFiles.forEach((f, i) => {
+        total += f.size;
+        const ext  = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
+        const icon = getExtGroup(ext) in EXT_ICON ? EXT_ICON[getExtGroup(ext)] : 'bi-file-earmark';
+        html += `<div class="file-item">
+            <div class="file-item-icon"><i class="bi ${icon}"></i></div>
+            <div class="file-item-info">
+                <div class="file-item-name">${escapeHtml(f.name)}</div>
+                <div class="file-item-size">${(f.size/1024/1024).toFixed(2)} MB</div>
+            </div>
+            <button class="btn-dl btn-ghost-dl" onclick="removeFile(${i})" title="Remove">
+                <i class="bi bi-x" style="font-size:.85rem;"></i>
+            </button>
+        </div>`;
+    });
+    document.getElementById('fileList').innerHTML = html;
+    document.getElementById('totalSize').textContent = (total/1024/1024).toFixed(2) + ' MB';
+    fc.style.display  = 'block';
+    btn.style.display = 'inline-flex';
+}
+
+function removeFile(i) { selectedFiles.splice(i, 1); renderFileList(); }
+function clearFileList() { selectedFiles = []; fileInput.value = ''; renderFileList(); }
+
+function startUpload() {
+    if (!selectedFiles.length) { Swal.fire('Error','No files selected','error'); return; }
+    document.getElementById('uploadBtn').style.display               = 'none';
+    document.getElementById('uploadProgressContainer').style.display  = 'block';
+    document.getElementById('uploadResultsContainer').style.display   = 'none';
+
+    const fd = new FormData();
+    selectedFiles.forEach(f => fd.append('files', f));
+    fd.append('libraryUrl', _libraryUrl);
+
+    const xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener('progress', e => {
+        if (e.lengthComputable) {
+            const pct = Math.round(e.loaded / e.total * 100);
+            document.getElementById('uploadProgressBar').style.width = pct + '%';
+            document.getElementById('uploadPct').textContent = pct + '%';
+        }
+    });
+    xhr.addEventListener('load', () => {
+        document.getElementById('uploadProgressContainer').style.display = 'none';
+        if (xhr.status === 200) {
+            try { displayUploadResults(JSON.parse(xhr.responseText)); }
+            catch { Swal.fire('Error','Invalid server response','error'); }
+        } else {
+            Swal.fire('Error','Upload failed','error');
+            document.getElementById('uploadBtn').style.display = 'inline-flex';
+        }
+    });
+    xhr.addEventListener('error', () => {
+        Swal.fire('Error','Network error','error');
+        document.getElementById('uploadProgressContainer').style.display = 'none';
+        document.getElementById('uploadBtn').style.display = 'inline-flex';
+    });
+    xhr.open('POST', '/Home/UploadFile');
+    xhr.send(fd);
+}
+
+function displayUploadResults(response) {
+    document.getElementById('uploadResultsContainer').style.display = 'block';
+    document.getElementById('closeBtn').style.display = 'inline-flex';
+    let html = '', allSuccess = true;
+    if (Array.isArray(response.uploadedFiles)) {
+        response.uploadedFiles.forEach(r => {
+            if (r.success) {
+                const url = _libraryUrl + '/' + r.fileName.split(/[\\/]/).pop();
+                html += `<div class="result-item success">
+                    <span><i class="bi bi-check-circle me-2"></i>${escapeHtml(r.fileName)}</span>
+                    <button class="btn-dl btn-outline-dl" style="font-size:.73rem;padding:4px 10px;"
+                            onclick="editMetadataAfterUpload('${url}','${escapeHtml(r.fileName)}')">
+                        <i class="bi bi-tags me-1"></i>Set Properties
+                    </button>
+                </div>`;
+            } else {
+                allSuccess = false;
+                html += `<div class="result-item error"><i class="bi bi-exclamation-circle me-2"></i>${escapeHtml(r.fileName)}: ${escapeHtml(r.message)}</div>`;
             }
         });
+    } else {
+        html = response.success
+            ? '<div class="result-item success"><i class="bi bi-check-circle me-2"></i>Upload successful</div>'
+            : `<div class="result-item error"><i class="bi bi-exclamation-circle me-2"></i>${escapeHtml(response.message)}</div>`;
     }
+    document.getElementById('uploadResults').innerHTML = html;
+    if (allSuccess && response.uploadedFiles?.length === 1) {
+        const f = response.uploadedFiles[0];
+        setTimeout(() => editMetadataAfterUpload(_libraryUrl + '/' + f.fileName.split(/[\\/]/).pop(), f.fileName), 800);
+    } else if (allSuccess) {
+        setTimeout(() => location.reload(), 3000);
+    }
+}
 
-    // ===================== CREATE FOLDER =====================
-    function createFolder() {
-    const folderName = $('#folderName').val().trim();
-    if (!folderName) {
-        alert("Enter folder name");
+
+// ══════════════════════════════════════════════
+//  METADATA / PROPERTIES
+//  GetLibraryFields now returns { success, fields }
+// ══════════════════════════════════════════════
+let _metaItemUrl = null, _metaIsFolder = false;
+
+function editMetadata(itemUrl, isFolder, itemName) {
+    _metaItemUrl = itemUrl; _metaIsFolder = isFolder;
+    document.getElementById('metadataModalTitle').textContent = itemName;
+    showMetadataModal();
+}
+
+function editMetadataAfterUpload(itemUrl, itemName) {
+    _metaItemUrl = itemUrl; _metaIsFolder = false;
+    document.getElementById('metadataModalTitle').textContent = itemName;
+    bootstrap.Modal.getInstance(document.getElementById('uploadModal'))?.hide();
+    showMetadataModal();
+}
+
+function showMetadataModal() {
+    document.getElementById('metadataFieldsContainer').innerHTML =
+        `<div style="text-align:center;padding:30px;color:var(--dl-text-muted);">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <span style="margin-left:8px;font-size:.82rem;">Loading fields…</span>
+         </div>`;
+    new bootstrap.Modal(document.getElementById('metadataModal')).show();
+
+    // GetLibraryFields now returns { success: bool, fields: [...] }
+    $.get('/Home/GetLibraryFields', { libraryUrl: _libraryUrl })
+        .done(data => {
+            // Handle both old (array) and new ({ success, fields }) response shapes
+            const fields = Array.isArray(data) ? data : (data.fields || []);
+            if (!data.success && !Array.isArray(data)) {
+                document.getElementById('metadataFieldsContainer').innerHTML =
+                    `<p style="color:var(--dl-danger);font-size:.82rem;text-align:center;padding:20px;">
+                        ${escapeHtml(data.message || 'Failed to load fields.')}
+                    </p>`;
+                return;
+            }
+            renderMetadataForm(fields);
+        })
+        .fail(() => {
+            document.getElementById('metadataFieldsContainer').innerHTML =
+                `<p style="color:var(--dl-danger,#dc2626);font-size:.82rem;text-align:center;padding:20px;">
+                    Failed to reach server. Check your connection.
+                </p>`;
+        });
+}
+
+function renderMetadataForm(fields) {
+    if (!fields?.length) {
+        document.getElementById('metadataFieldsContainer').innerHTML =
+            `<p style="text-align:center;color:var(--dl-text-muted);font-size:.82rem;padding:20px;">
+                No editable properties found for this library.
+             </p>`;
         return;
     }
+    const typeLabels = {
+        Text:'Text', Note:'Multi-line text', DateTime:'Date & Time',
+        Number:'Number', Currency:'Currency', Boolean:'Yes / No',
+        Choice:'Choice', User:'Person', URL:'URL', Integer:'Integer'
+    };
+    let html = '';
+    fields.forEach(f => {
+        const star = f.required ? '<span class="meta-required-star">*</span>' : '';
+        const hint = typeLabels[f.fieldType] || f.fieldType;
+        html += `<div class="meta-field-group"><label class="form-label">${escapeHtml(f.title)}${star}</label>`;
 
-        $.ajax({
-            url: '/Home/CreateFolder',
-            type: 'POST',
-            data: {
-                folderName: folderName,
-                libraryUrl: '@ViewBag.LibraryUrl'
-            },
-            success: function (res) {
-                if (!res.success) {
-                    alert(res.message);
-                    return;
-                }
-                location.reload();
-            },
-            error: function (xhr) {
-                Swal.fire("", "error " + xhr.responseText, "error");
-            }
-        });
-    }
-    function deleteItem(itemUrl, isFolder) {
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "Do you want to delete this " + (isFolder ? "folder" : "file") + "?",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Proceed with AJAX delete
-                $.ajax({
-                    url: '@Url.Action("DeleteItem","Home")',
-                    type: 'POST',
-                    data: { itemUrl: itemUrl, isFolder: isFolder },
-                    success: function(res) {
-                        if (res.success) {
-                            Swal.fire(
-                                'Deleted!',
-                                (isFolder ? 'Folder' : 'File') + ' has been deleted.',
-                                'success'
-                            ).then(() => location.reload());
-                        } else {
-                            Swal.fire('Error', res.message, 'error');
-                        }
-                    },
-                    error: function(xhr) {
-                        Swal.fire('Error', xhr.responseText, 'error');
-                    }
-                });
-            }
-        });
-    }
-    function renameItem(itemUrl, isFolder, currentName) {
-        Swal.fire({
-            title: 'Rename ' + (isFolder ? 'Folder' : 'File'),
-            input: 'text',
-            inputLabel: 'New Name',
-            inputValue: currentName,
-            showCancelButton: true,
-            confirmButtonText: 'Rename',
-            cancelButtonText: 'Cancel',
-            preConfirm: (newName) => {
-                if (!newName || newName.trim() === "") {
-                    Swal.showValidationMessage('Name cannot be empty');
-                }
-                return newName.trim();
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: '@Url.Action("RenameItem", "Home")',
-                    type: 'POST',
-                    data: {
-                        itemUrl: itemUrl,
-                        isFolder: isFolder,
-                        newName: result.value
-                    },
-                    success: function(res) {
-                        if (res.success) {
-                            Swal.fire('Renamed!', (isFolder ? 'Folder' : 'File') + ' renamed successfully.', 'success')
-                                .then(() => location.reload());
-                        } else {
-                            Swal.fire('Error', res.message, 'error');
-                        }
-                    },
-                    error: function(xhr) {
-                        Swal.fire('Error', xhr.responseText, 'error');
-                    }
-                });
-            }
-        });
-    }
+        if (f.fieldType === 'Choice' && f.choices?.length) {
+            html += `<select class="form-select" name="${escapeHtml(f.internalName)}" ${f.required ? 'required' : ''}>
+                <option value="">— Select —</option>
+                ${f.choices.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
+            </select>`;
+        } else if (f.fieldType === 'Boolean') {
+            html += `<select class="form-select" name="${escapeHtml(f.internalName)}">
+                <option value="">— Select —</option>
+                <option value="Yes">Yes</option><option value="No">No</option>
+            </select>`;
+        } else if (f.fieldType === 'DateTime') {
+            html += `<input type="datetime-local" class="form-control" name="${escapeHtml(f.internalName)}" ${f.required ? 'required' : ''} />`;
+        } else if (f.fieldType === 'Note') {
+            html += `<textarea class="form-control" name="${escapeHtml(f.internalName)}" rows="3" ${f.required ? 'required' : ''}></textarea>`;
+        } else if (f.fieldType === 'Number' || f.fieldType === 'Currency' || f.fieldType === 'Integer') {
+            html += `<input type="number" class="form-control" name="${escapeHtml(f.internalName)}" step="any" ${f.required ? 'required' : ''} />`;
+        } else {
+            html += `<input type="text" class="form-control" name="${escapeHtml(f.internalName)}" ${f.required ? 'required' : ''} />`;
+        }
+        html += `<div class="meta-type-hint">${escapeHtml(hint)}</div></div>`;
+    });
+    document.getElementById('metadataFieldsContainer').innerHTML = html;
+}
 
+function saveMetadata() {
+    if (!_metaItemUrl) return;
+
+    // Validate required fields
+    let valid = true;
+    document.querySelectorAll('#metadataFieldsContainer [required]').forEach(el => {
+        if (!el.value.trim()) {
+            el.classList.add('is-invalid');
+            valid = false;
+        } else {
+            el.classList.remove('is-invalid');
+        }
+    });
+    if (!valid) { Swal.fire('Validation', 'Please fill in all required fields.', 'warning'); return; }
+
+    const metadata = {};
+    document.querySelectorAll('#metadataFieldsContainer [name]').forEach(el => {
+        if (el.value.trim()) metadata[el.name] = el.value.trim();
+    });
+
+    $.ajax({
+        url: '/Home/SaveItemMetadata', type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ itemUrl: _metaItemUrl, isFolder: _metaIsFolder, metadata }),
+        success(res) {
+            if (res.success) {
+                bootstrap.Modal.getInstance(document.getElementById('metadataModal'))?.hide();
+                Swal.fire({ icon:'success', title:'Saved', text:'Properties updated.', timer:1500, showConfirmButton:false })
+                    .then(() => location.reload());
+            } else { Swal.fire('Error', res.message, 'error'); }
+        },
+        error() { Swal.fire('Error','Failed to save properties.','error'); }
+    });
+}
+
+
+// ══════════════════════════════════════════════
+//  FOLDER & ITEM MANAGEMENT
+// ══════════════════════════════════════════════
+function createFolder() {
+    const name = $('#folderName').val().trim();
+    if (!name) { Swal.fire('Error','Enter a folder name','error'); return; }
+    $.post('/Home/CreateFolder', { folderName: name, libraryUrl: _libraryUrl }, res => {
+        if (res.success) {
+            Swal.fire({ icon:'success', title:'Created', timer:1200, showConfirmButton:false }).then(() => location.reload());
+        } else { Swal.fire('Error', res.message, 'error'); }
+    });
+}
+
+function deleteItem(itemUrl, isFolder) {
+    Swal.fire({
+        title: 'Delete ' + (isFolder ? 'folder' : 'file') + '?',
+        text: 'This action cannot be undone.', icon: 'warning',
+        showCancelButton: true, confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Delete', cancelButtonText: 'Cancel'
+    }).then(r => {
+        if (!r.isConfirmed) return;
+        $.post('@Url.Action("DeleteItem","Home")', { itemUrl, isFolder }, res => {
+            if (res.success) {
+                Swal.fire({ icon:'success', title:'Deleted', timer:1200, showConfirmButton:false }).then(() => location.reload());
+            } else { Swal.fire('Error', res.message, 'error'); }
+        });
+    });
+}
+
+function renameItem(itemUrl, isFolder, currentName) {
+    Swal.fire({
+        title: 'Rename ' + (isFolder ? 'Folder' : 'File'),
+        input: 'text', inputValue: currentName, showCancelButton: true, confirmButtonText: 'Rename',
+        preConfirm: v => { if (!v?.trim()) Swal.showValidationMessage('Name cannot be empty'); return v?.trim(); }
+    }).then(r => {
+        if (!r.isConfirmed) return;
+        $.post('@Url.Action("RenameItem","Home")', { itemUrl, isFolder, newName: r.value }, res => {
+            if (res.success) {
+                Swal.fire({ icon:'success', title:'Renamed', timer:1200, showConfirmButton:false }).then(() => location.reload());
+            } else { Swal.fire('Error', res.message, 'error'); }
+        });
+    });
+}
+
+function submitForApproval(itemUrl, itemName, workflowId) {
+    Swal.fire({ title:'Send for Approval?', icon:'question', showCancelButton:true, confirmButtonText:'Send' })
+        .then(r => {
+            if (!r.isConfirmed) return;
+            $.post('/Workflow/SubmitForApproval', { itemUrl, itemName, workflowId }, res => {
+                if (res.success) {
+                    Swal.fire({ icon:'success', title:'Submitted', timer:1200, showConfirmButton:false }).then(() => location.reload());
+                } else { Swal.fire('Error', res.message, 'error'); }
+            });
+        });
+}
+
+function showVersions(fileUrl) {
+    $.ajax({
+        url: '/Home/GetFileVersions', type: 'POST',
+        contentType: 'application/json', data: JSON.stringify({ fileUrl }),
+        success(res) {
+            if (!res.success) { Swal.fire('Error', res.message, 'error'); return; }
+            const list = document.getElementById('versionsList');
+            list.innerHTML = !res.versions.length
+                ? '<p style="text-align:center;color:var(--dl-text-muted);font-size:.82rem;padding:20px;">No version history.</p>'
+                : res.versions.map(v => `
+                    <div class="version-item">
+                        <div>
+                            <span class="version-label">v${v.VersionLabel}</span>
+                            <div class="version-meta">${new Date(v.Created).toLocaleString()}</div>
+                        </div>
+                        <div style="display:flex;gap:6px;">
+                            <button class="btn-dl btn-outline-dl" style="font-size:.73rem;"
+                                    onclick="openViewer('${v.Url}?version=${v.VersionLabel}','')">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <a class="btn-dl btn-outline-dl" style="font-size:.73rem;"
+                               href="${v.Url}?version=${v.VersionLabel}" download>
+                                <i class="bi bi-download"></i>
+                            </a>
+                        </div>
+                    </div>`).join('');
+            new bootstrap.Modal(document.getElementById('versionsModal')).show();
+        },
+        error() { Swal.fire('Error','Could not load versions','error'); }
+    });
+}
+
+function shareItem(itemUrl) {
+    $('#shareLink').val(window.location.origin + itemUrl);
+    $('#shareUser').val('');
+    $('#userResults').addClass('d-none').empty();
+    $('#shareModal').data('itemUrl', itemUrl);
+    new bootstrap.Modal(document.getElementById('shareModal')).show();
+}
+
+function grantAccess() {
+    const user    = $('#shareUser').val().trim();
+    const role    = $('#shareRole').val();
+    const itemUrl = $('#shareModal').data('itemUrl');
+    if (!user) { Swal.fire('Error','Enter a user','error'); return; }
+    $.post('/Home/GrantItemAccess', { itemUrl, userLogin: user, role }, res => {
+        if (res.success) { Swal.fire({ icon:'success', title:'Shared!', timer:1500, showConfirmButton:false }); }
+        else { Swal.fire('Error', res.message, 'error'); }
+    });
+}
+
+function copyShareLink() {
+    navigator.clipboard.writeText(document.getElementById('shareLink').value);
+    Swal.fire({ icon:'success', title:'Copied!', timer:1000, showConfirmButton:false });
+}
+
+let _userTimer = null;
+$('#shareUser').on('keyup', function () {
+    const q = $(this).val().trim();
+    clearTimeout(_userTimer);
+    if (q.length < 2) { $('#userResults').addClass('d-none').empty(); return; }
+    _userTimer = setTimeout(() => {
+        $.get('/Home/SearchUsers', { term: q }, res => {
+            const list = $('#userResults');
+            list.empty();
+            if (!res?.length) { list.addClass('d-none'); return; }
+            res.forEach(u => list.append(
+                `<li class="list-group-item list-group-item-action" style="cursor:pointer;"
+                     onclick="selectUser('${u.Login}')">
+                    <strong style="font-size:.82rem;">${escapeHtml(u.DisplayName)}</strong>
+                    <span style="font-size:.73rem;color:var(--dl-text-muted);display:block;">${escapeHtml(u.Login)}</span>
+                 </li>`
+            ));
+            list.removeClass('d-none');
+        });
+    }, 280);
+});
+
+function selectUser(login) { $('#shareUser').val(login); $('#userResults').addClass('d-none').empty(); }
+$(document).on('click', e => {
+    if (!$(e.target).closest('#shareUser, #userResults').length) $('#userResults').addClass('d-none');
+});
+
+
+// ══════════════════════════════════════════════
+//  DATATABLE INIT
+// ══════════════════════════════════════════════
+$(document).ready(function () {
+    const table = $('#documentsTable').DataTable({
+        paging: true, searching: true, ordering: true, info: true,
+        responsive: false, orderCellsTop: true, pageLength: 25,
+        language: {
+            search: '', searchPlaceholder: 'Search…',
+            lengthMenu: 'Show _MENU_ per page',
+            info: '_START_–_END_ of _TOTAL_ items',
+            paginate: { previous: '‹', next: '›' }
+        },
+        columnDefs: [{ orderable: false, targets: -1 }]
+    });
+    $('#documentsTable thead tr:eq(1) th').each(function (i) {
+        $('input, select', this).on('keyup change', function () {
+            if (table.column(i).search() !== this.value)
+                table.column(i).search(this.value).draw();
+        });
+    });
+});
 </script>
-
-
-

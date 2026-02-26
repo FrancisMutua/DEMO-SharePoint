@@ -1,90 +1,1222 @@
 ﻿@model DEMO_SharePoint.Models.DashboardViewModel
+@using DEMO_SharePoint.Models
 @{
-    ViewBag.Title = "Dashboard";
+    ViewBag.Title = "Library Manager";
 }
 
-<!-- Include jQuery and DataTables CSS/JS -->
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<!-- DataTables -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
+<style>
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       LIBRARY MANAGER — PAGE STYLES
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        .lm-page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+        }
 
-    <!-- Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="fw-semibold mb-0">System Dashboard</h4>
-        <span class="text-muted">Overview of EDM activities</span>
+        .lm-page-title {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+        }
+
+        .lm-title-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--ak-red), var(--ak-orange));
+            border-radius: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 14px rgba(232,79,38,.28);
+            flex-shrink: 0;
+        }
+
+        .lm-title-text h4 {
+            font-size: 1.18rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            letter-spacing: -.02em;
+            margin: 0 0 2px;
+        }
+
+        .lm-title-text p {
+            font-size: .78rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        .lm-stats {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .lm-stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: var(--surface-card);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            box-shadow: var(--shadow-xs);
+        }
+
+        .lm-stat-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .82rem;
+            flex-shrink: 0;
+        }
+
+            .lm-stat-icon.blue {
+                background: var(--ak-blue-light);
+                color: var(--ak-blue);
+            }
+
+            .lm-stat-icon.green {
+                background: var(--ak-green-light);
+                color: var(--ak-green);
+            }
+
+            .lm-stat-icon.yellow {
+                background: var(--ak-yellow-light);
+                color: var(--ak-yellow-dark);
+            }
+
+        .lm-stat-val {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            line-height: 1;
+        }
+
+        .lm-stat-lbl {
+            font-size: .68rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .lm-section {
+            background: var(--surface-card);
+            border: 1px solid var(--border-light);
+            border-radius: 14px;
+            box-shadow: 0 1px 4px rgba(0,0,0,.05);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .lm-section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-light);
+            background: var(--surface-subtle);
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .lm-section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: .85rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            letter-spacing: -.01em;
+        }
+
+            .lm-section-title i {
+                font-size: .9rem;
+                color: var(--ak-blue);
+            }
+
+        /* Library card grid */
+        .lib-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 14px;
+            padding: 20px;
+        }
+
+        .lib-card {
+            background: var(--surface-card);
+            border: 1.5px solid var(--border-light);
+            border-radius: 12px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: all 0.17s ease;
+            cursor: default;
+            position: relative;
+            overflow: hidden;
+        }
+
+            .lib-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 3px;
+                background: linear-gradient(90deg, var(--ak-yellow), var(--ak-orange));
+                opacity: 0;
+                transition: opacity 0.17s ease;
+            }
+
+            .lib-card:hover {
+                border-color: var(--border-mid);
+                box-shadow: 0 4px 16px rgba(0,0,0,.07);
+                transform: translateY(-2px);
+            }
+
+                .lib-card:hover::before {
+                    opacity: 1;
+                }
+
+        .lib-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .lib-card-icon {
+            width: 38px;
+            height: 38px;
+            background: var(--ak-yellow-light);
+            color: var(--ak-yellow-dark);
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .lib-card-name {
+            font-size: .9rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            letter-spacing: -.01em;
+            flex: 1;
+            line-height: 1.3;
+        }
+
+        .lib-card-url {
+            font-size: .7rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .lib-meta-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            min-height: 24px;
+        }
+
+        .lib-meta-chip {
+            font-size: .65rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 99px;
+            border: 1px solid var(--border-light);
+            color: var(--text-secondary);
+            background: var(--surface-subtle);
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            font-family: var(--font-mono);
+            letter-spacing: .02em;
+        }
+
+            .lib-meta-chip.type-text {
+                background: var(--ak-blue-light);
+                border-color: var(--ak-blue);
+                color: var(--ak-blue-dark);
+            }
+
+            .lib-meta-chip.type-number {
+                background: var(--ak-green-light);
+                border-color: var(--ak-green);
+                color: var(--ak-green-dark);
+            }
+
+            .lib-meta-chip.type-date {
+                background: var(--ak-yellow-light);
+                border-color: var(--ak-yellow);
+                color: var(--ak-yellow-dark);
+            }
+
+            .lib-meta-chip.type-choice {
+                background: var(--ak-red-light);
+                border-color: var(--ak-red);
+                color: var(--ak-red-dark);
+            }
+
+            .lib-meta-chip.type-boolean {
+                background: #F3E8FF;
+                border-color: #A855F7;
+                color: #7E22CE;
+            }
+
+        .lib-meta-chip-more {
+            font-size: .65rem;
+            color: var(--text-muted);
+            padding: 2px 6px;
+            border-radius: 99px;
+            background: var(--surface-subtle);
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+            .lib-meta-chip-more:hover {
+                background: var(--ak-blue-light);
+                color: var(--ak-blue-dark);
+            }
+
+        .lib-card-actions {
+            display: flex;
+            gap: 6px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .lib-action-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 6px 0;
+            border-radius: 7px;
+            font-size: .74rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid;
+            transition: all 0.15s ease;
+            font-family: var(--font);
+            text-decoration: none;
+        }
+
+            .lib-action-btn.edit {
+                background: var(--ak-blue-light);
+                border-color: var(--ak-blue);
+                color: var(--ak-blue-dark);
+            }
+
+                .lib-action-btn.edit:hover {
+                    background: var(--ak-blue);
+                    color: #fff;
+                }
+
+            .lib-action-btn.meta {
+                background: var(--surface-subtle);
+                border-color: var(--border-mid);
+                color: var(--text-secondary);
+            }
+
+                .lib-action-btn.meta:hover {
+                    background: #F3E8FF;
+                    border-color: #A855F7;
+                    color: #7E22CE;
+                }
+
+            .lib-action-btn.open {
+                background: var(--surface-subtle);
+                border-color: var(--border-mid);
+                color: var(--text-secondary);
+            }
+
+                .lib-action-btn.open:hover {
+                    background: var(--ak-green-light);
+                    border-color: var(--ak-green);
+                    color: var(--ak-green-dark);
+                }
+
+            .lib-action-btn.danger {
+                background: var(--ak-red-light);
+                border-color: rgba(232,79,38,.3);
+                color: var(--ak-red);
+                flex: none;
+                padding: 6px 10px;
+            }
+
+                .lib-action-btn.danger:hover {
+                    background: var(--ak-red);
+                    color: #fff;
+                }
+
+        .lib-card-add {
+            background: transparent;
+            border: 2px dashed var(--border-mid);
+            border-radius: 12px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 160px;
+            cursor: pointer;
+            transition: all 0.17s ease;
+            color: var(--text-muted);
+        }
+
+            .lib-card-add:hover {
+                border-color: var(--ak-red);
+                background: var(--ak-red-light);
+                color: var(--ak-red);
+            }
+
+        .lib-card-add-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--surface-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: all 0.17s ease;
+        }
+
+        .lib-card-add:hover .lib-card-add-icon {
+            background: rgba(232,79,38,.12);
+            color: var(--ak-red);
+        }
+
+        .lib-card-add span {
+            font-size: .8rem;
+            font-weight: 600;
+        }
+
+        /* ── MODALS ── */
+        .ak-modal .modal-content {
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.15), 0 4px 16px rgba(0,0,0,.08);
+            font-family: var(--font);
+            overflow: hidden;
+        }
+
+        .ak-modal .modal-header {
+            padding: 0;
+            border: none;
+        }
+
+        .modal-header-band {
+            padding: 18px 22px 16px;
+            background: var(--ak-navy);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .modal-header-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .9rem;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+            .modal-header-icon.red {
+                background: rgba(232,79,38,.3);
+            }
+
+            .modal-header-icon.blue {
+                background: rgba(0,167,228,.3);
+            }
+
+            .modal-header-icon.yellow {
+                background: rgba(254,185,0,.3);
+            }
+
+            .modal-header-icon.purple {
+                background: rgba(168,85,247,.3);
+            }
+
+        .modal-header-title {
+            font-size: .95rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -.01em;
+            flex: 1;
+        }
+
+        .modal-header-sub {
+            font-size: .72rem;
+            color: rgba(255,255,255,.5);
+            margin-top: 1px;
+        }
+
+        .modal-close-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 7px;
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.12);
+            color: rgba(255,255,255,.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: .85rem;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+
+            .modal-close-btn:hover {
+                background: rgba(255,255,255,.15);
+                color: #fff;
+            }
+
+        .modal-colorbar {
+            height: 3px;
+            background: linear-gradient(90deg, var(--ak-yellow) 0% 25%, var(--ak-orange) 25% 50%, var(--ak-green) 50% 75%, var(--ak-blue) 75% 100%);
+        }
+
+        .ak-modal .modal-body {
+            padding: 22px;
+        }
+
+        .ak-modal .modal-footer {
+            padding: 14px 22px;
+            border-top: 1px solid var(--border-light);
+            background: var(--surface-subtle);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .ak-label {
+            font-size: .72rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+            .ak-label .required {
+                color: var(--ak-red);
+                margin-left: 2px;
+            }
+
+        .ak-input, .ak-select, .ak-textarea {
+            width: 100%;
+            font-family: var(--font);
+            font-size: .84rem;
+            color: var(--text-heading);
+            background: var(--surface-card);
+            border: 1.5px solid var(--border-light);
+            border-radius: 8px;
+            padding: 9px 12px;
+            transition: all 0.15s ease;
+            outline: none;
+        }
+
+            .ak-input:focus, .ak-select:focus, .ak-textarea:focus {
+                border-color: var(--ak-blue);
+                box-shadow: 0 0 0 3px rgba(0,167,228,.12);
+            }
+
+            .ak-input::placeholder, .ak-textarea::placeholder {
+                color: var(--text-muted);
+            }
+
+        .ak-textarea {
+            resize: vertical;
+            min-height: 72px;
+        }
+
+        .ak-select {
+            cursor: pointer;
+        }
+
+        .ak-hint {
+            font-size: .7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .modal-section-label {
+            font-size: .68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 20px 0 14px;
+        }
+
+            .modal-section-label::before, .modal-section-label::after {
+                content: '';
+                flex: 1;
+                height: 1px;
+                background: var(--border-light);
+            }
+
+        /* Metadata field builder */
+        .meta-fields-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 320px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+
+            .meta-fields-list::-webkit-scrollbar {
+                width: 4px;
+            }
+
+            .meta-fields-list::-webkit-scrollbar-thumb {
+                background: var(--border-mid);
+                border-radius: 99px;
+            }
+
+        .meta-field-row {
+            display: grid;
+            grid-template-columns: 1fr 130px 80px 36px;
+            gap: 7px;
+            align-items: center;
+            background: var(--surface-subtle);
+            border: 1px solid var(--border-light);
+            border-radius: 9px;
+            padding: 10px 12px;
+            transition: border-color 0.15s ease;
+            animation: fieldIn .2s ease;
+        }
+
+        @@keyframes fieldIn {
+            from {
+                opacity: 0;
+                transform: translateY(-6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .meta-field-row:hover {
+            border-color: var(--border-mid);
+        }
+
+        .meta-field-row input, .meta-field-row select {
+            font-family: var(--font);
+            font-size: .8rem;
+            color: var(--text-heading);
+            background: var(--surface-card);
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            padding: 6px 9px;
+            outline: none;
+            width: 100%;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+            .meta-field-row input:focus, .meta-field-row select:focus {
+                border-color: var(--ak-blue);
+                box-shadow: 0 0 0 2px rgba(0,167,228,.1);
+            }
+
+        .req-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+            .req-toggle input[type="checkbox"] {
+                width: 15px !important;
+                height: 15px;
+                accent-color: var(--ak-red);
+                cursor: pointer;
+                border-radius: 4px;
+                padding: 0 !important;
+            }
+
+        .btn-remove-field {
+            width: 32px;
+            height: 32px;
+            border-radius: 7px;
+            background: transparent;
+            border: 1px solid var(--border-light);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: .78rem;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+
+            .btn-remove-field:hover {
+                background: var(--ak-red-light);
+                border-color: var(--ak-red);
+                color: var(--ak-red);
+            }
+
+        .btn-add-field {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            padding: 9px;
+            border-radius: 8px;
+            border: 1.5px dashed var(--border-mid);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: .78rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: var(--font);
+            transition: all 0.15s ease;
+            margin-top: 8px;
+        }
+
+            .btn-add-field:hover {
+                border-color: var(--ak-blue);
+                color: var(--ak-blue);
+                background: var(--ak-blue-light);
+            }
+
+        .meta-fields-header {
+            display: grid;
+            grid-template-columns: 1fr 130px 80px 36px;
+            gap: 7px;
+            padding: 0 12px;
+            margin-bottom: 5px;
+        }
+
+            .meta-fields-header span {
+                font-size: .64rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: .08em;
+                color: var(--text-muted);
+            }
+
+        /* Meta view modal */
+        .meta-view-list {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .meta-view-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 9px 12px;
+            background: var(--surface-subtle);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            font-size: .82rem;
+        }
+
+        .meta-view-name {
+            font-weight: 600;
+            color: var(--text-heading);
+        }
+
+        .meta-view-req {
+            font-size: .64rem;
+            font-weight: 700;
+            padding: 1px 7px;
+            border-radius: 99px;
+            background: var(--ak-red-light);
+            color: var(--ak-red);
+            border: 1px solid rgba(232,79,38,.25);
+        }
+
+        /* SharePoint fields in meta view */
+        .sp-fields-section {
+            margin-top: 18px;
+            border-top: 1px solid var(--border-light);
+            padding-top: 14px;
+        }
+
+        .sp-field-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: var(--surface-subtle);
+            border: 1px solid var(--border-light);
+            margin-bottom: 6px;
+            font-size: .8rem;
+        }
+
+            .sp-field-row:last-child {
+                margin-bottom: 0;
+            }
+
+        .sp-field-name {
+            font-weight: 600;
+            color: var(--text-heading);
+            flex: 1;
+        }
+
+        .sp-field-type-badge {
+            font-size: .64rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 99px;
+            font-family: var(--font-mono);
+        }
+
+            .sp-field-type-badge.Text {
+                background: var(--ak-blue-light);
+                color: var(--ak-blue-dark);
+                border: 1px solid var(--ak-blue);
+            }
+
+            .sp-field-type-badge.Number {
+                background: var(--ak-green-light);
+                color: var(--ak-green-dark);
+                border: 1px solid var(--ak-green);
+            }
+
+            .sp-field-type-badge.DateTime {
+                background: var(--ak-yellow-light);
+                color: var(--ak-yellow-dark);
+                border: 1px solid var(--ak-yellow);
+            }
+
+            .sp-field-type-badge.Choice {
+                background: var(--ak-red-light);
+                color: var(--ak-red-dark);
+                border: 1px solid var(--ak-red);
+            }
+
+            .sp-field-type-badge.Boolean {
+                background: #F3E8FF;
+                color: #7E22CE;
+                border: 1px solid #A855F7;
+            }
+
+            .sp-field-type-badge.other {
+                background: var(--surface-card);
+                color: var(--text-muted);
+                border: 1px solid var(--border-mid);
+            }
+
+        .sp-field-internal {
+            font-size: .65rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .sp-field-req {
+            font-size: .62rem;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 99px;
+            background: var(--ak-red-light);
+            color: var(--ak-red);
+            border: 1px solid rgba(232,79,38,.25);
+        }
+
+        .meta-spinner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 24px;
+            color: var(--text-muted);
+            font-size: .82rem;
+        }
+
+            .meta-spinner .spinner-border {
+                width: 18px;
+                height: 18px;
+                border-width: 2px;
+            }
+
+        /* Buttons */
+        .btn-ak-cancel {
+            padding: 8px 18px;
+            border-radius: 7px;
+            font-size: .8rem;
+            font-weight: 600;
+            background: var(--surface-card);
+            border: 1px solid var(--border-mid);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-family: var(--font);
+            transition: all 0.15s ease;
+        }
+
+            .btn-ak-cancel:hover {
+                background: var(--surface-subtle);
+                color: var(--text-heading);
+            }
+
+        .btn-ak-save {
+            padding: 8px 22px;
+            border-radius: 7px;
+            font-size: .8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--ak-red), var(--ak-orange));
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-family: var(--font);
+            box-shadow: 0 3px 10px rgba(232,79,38,.25);
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+            .btn-ak-save:hover {
+                box-shadow: 0 5px 18px rgba(232,79,38,.38);
+                transform: translateY(-1px);
+            }
+
+            .btn-ak-save:active {
+                transform: translateY(0);
+            }
+
+        .btn-ak-purple {
+            padding: 8px 22px;
+            border-radius: 7px;
+            font-size: .8rem;
+            font-weight: 700;
+            background: #A855F7;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-family: var(--font);
+            box-shadow: 0 3px 10px rgba(168,85,247,.25);
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+
+            .btn-ak-purple:hover {
+                background: #9333EA;
+                box-shadow: 0 5px 18px rgba(168,85,247,.35);
+                transform: translateY(-1px);
+                color: #fff;
+            }
+
+        /* Tabs */
+        .ak-tabs {
+            display: flex;
+            gap: 2px;
+            background: var(--surface-subtle);
+            border-radius: 9px;
+            padding: 3px;
+            border: 1px solid var(--border-light);
+            margin-bottom: 18px;
+        }
+
+        .ak-tab {
+            flex: 1;
+            padding: 7px 10px;
+            border-radius: 7px;
+            border: none;
+            background: transparent;
+            font-family: var(--font);
+            font-size: .78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+            .ak-tab.active {
+                background: var(--surface-card);
+                color: var(--text-heading);
+                box-shadow: 0 1px 4px rgba(0,0,0,.07);
+            }
+
+        .ak-tab-panel {
+            display: none;
+        }
+
+            .ak-tab-panel.active {
+                display: block;
+                animation: fadeIn .2s ease;
+            }
+
+        @@keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Empty state */
+        .lib-empty {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            gap: 12px;
+            color: var(--text-muted);
+        }
+
+        .lib-empty-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            background: var(--surface-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: var(--border-mid);
+        }
+
+        .lib-empty h6 {
+            font-size: .92rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        .lib-empty p {
+            font-size: .78rem;
+            margin: 0;
+            text-align: center;
+            max-width: 240px;
+        }
+
+        /* Toast */
+        .ak-toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 18px;
+            background: var(--ak-navy);
+            border-radius: 11px;
+            box-shadow: 0 8px 30px rgba(0,0,0,.2);
+            color: #fff;
+            font-size: .82rem;
+            font-weight: 500;
+            z-index: 9999;
+            transform: translateY(80px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(.22,1,.36,1);
+            max-width: 340px;
+            font-family: var(--font);
+        }
+
+            .ak-toast.show {
+                transform: translateY(0);
+                opacity: 1;
+            }
+
+        .ak-toast-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .82rem;
+            flex-shrink: 0;
+        }
+
+            .ak-toast-icon.success {
+                background: rgba(131,187,0,.25);
+                color: var(--ak-green);
+            }
+
+            .ak-toast-icon.error {
+                background: rgba(232,79,38,.25);
+                color: var(--ak-red);
+            }
+
+        /* Delete modal */
+        .delete-confirm-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: var(--ak-red-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: var(--ak-red);
+            margin: 0 auto 16px;
+        }
+
+        /* DataTable */
+        #recentActivitiesTable thead th {
+            font-size: .7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--text-secondary);
+            background: var(--surface-subtle);
+            border-bottom: 2px solid var(--border-light);
+            padding: 10px 12px;
+            white-space: nowrap;
+        }
+
+        #recentActivitiesTable tbody td {
+            font-size: .82rem;
+            padding: 10px 12px;
+            color: var(--text-body);
+            vertical-align: middle;
+        }
+
+        #recentActivitiesTable tbody tr:hover {
+            background: var(--surface-subtle);
+        }
+
+        #recentActivitiesTable tbody tr {
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        div.dataTables_wrapper div.dataTables_paginate .page-item.active .page-link {
+            background: var(--ak-red) !important;
+            border-color: var(--ak-red) !important;
+        }
+
+        div.dataTables_wrapper div.dataTables_filter input, div.dataTables_wrapper div.dataTables_length select {
+            border: 1px solid var(--border-light);
+            border-radius: 7px;
+            font-family: var(--font);
+            font-size: .8rem;
+            padding: 4px 8px;
+        }
+
+            div.dataTables_wrapper div.dataTables_filter input:focus {
+                border-color: var(--ak-blue);
+                outline: none;
+                box-shadow: 0 0 0 2px rgba(0,167,228,.1);
+            }
+</style>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE HEADER
+═══════════════════════════════════════════════ -->
+<div class="lm-page-header">
+    <div class="lm-page-title">
+        <div class="lm-title-icon"><i class="bi bi-collection"></i></div>
+        <div class="lm-title-text">
+            <h4>Library Manager</h4>
+            <p>Manage document libraries and their metadata schemas</p>
+        </div>
     </div>
-
-    <!-- Summary Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-folder2-open fs-2 text-primary me-3"></i>
-                        <div>
-                            <h6 class="mb-0">Total Documents</h6>
-                            <h4 class="fw-bold">@Model.TotalDocuments</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <div class="lm-stats">
+        <div class="lm-stat">
+            <div class="lm-stat-icon blue"><i class="bi bi-collection"></i></div>
+            <div><div class="lm-stat-val" id="statLibCount">0</div><div class="lm-stat-lbl">Libraries</div></div>
         </div>
-
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-upload fs-2 text-success me-3"></i>
-                        <div>
-                            <h6 class="mb-0">Uploads Today</h6>
-                            <h4 class="fw-bold">@Model.UploadsToday</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="lm-stat">
+            <div class="lm-stat-icon yellow"><i class="bi bi-tags"></i></div>
+            <div><div class="lm-stat-val" id="statMetaCount">0</div><div class="lm-stat-lbl">Total Fields</div></div>
         </div>
-
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-people fs-2 text-info me-3"></i>
-                        <div>
-                            <h6 class="mb-0">Active Users</h6>
-                            <h4 class="fw-bold">@Model.ActiveUsers</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="lm-stat">
+            <div class="lm-stat-icon green"><i class="bi bi-folder2-open"></i></div>
+            <div><div class="lm-stat-val">@(Model?.TotalDocuments ?? 0)</div><div class="lm-stat-lbl">Documents</div></div>
         </div>
     </div>
+</div>
 
-    <!-- Recent Activities -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-white fw-semibold">
-            Recent Activities
+<!-- ═══════════════════════════════════════════════
+     LIBRARIES SECTION
+═══════════════════════════════════════════════ -->
+<div class="lm-section">
+    <div class="lm-section-head">
+        <div class="lm-section-title"><i class="bi bi-collection-fill"></i> Document Libraries</div>
+        <button class="btn-ak-save" onclick="openAddLibrary()" style="padding:7px 16px;font-size:.78rem;">
+            <i class="bi bi-plus-lg"></i> New Library
+        </button>
+    </div>
+    <div class="lib-grid" id="libGrid">
+        <div class="lib-empty" id="libEmptyState" style="display:none;">
+            <div class="lib-empty-icon"><i class="bi bi-collection"></i></div>
+            <h6>No libraries yet</h6>
+            <p>Create your first document library to get started.</p>
         </div>
-        <div class="card-body p-0">
-            <table id="recentActivitiesTable" class="table table-hover table-bordered mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>User</th>
-                        <th>Activity</th>
-                        <th>Document</th>
-                        <th>Date</th>
-                    </tr>
-                    <tr>
-                        <!-- Filter row -->
-                        <th><input type="text" class="form-control form-control-sm" placeholder="Search User" /></th>
-                        <th><input type="text" class="form-control form-control-sm" placeholder="Search Activity" /></th>
-                        <th><input type="text" class="form-control form-control-sm" placeholder="Search Document" /></th>
-                        <th><input type="text" class="form-control form-control-sm" placeholder="Search Date" /></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var act in Model.RecentActivities.OrderByDescending(a => a.Date))
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     RECENT ACTIVITIES
+═══════════════════════════════════════════════ -->
+<div class="lm-section">
+    <div class="lm-section-head">
+        <div class="lm-section-title"><i class="bi bi-activity"></i> Recent Activities</div>
+        <span style="font-size:.74rem;color:var(--text-muted);">Last 30 days</span>
+    </div>
+    <div style="overflow-x:auto;">
+        <table id="recentActivitiesTable" class="table table-hover mb-0" style="min-width:600px;">
+            <thead>
+                <tr><th>User</th><th>Activity</th><th>Document</th><th>Date</th></tr>
+                <tr>
+                    <th><input type="text" class="form-control form-control-sm" placeholder="Filter…" style="font-size:.76rem;border-radius:6px;"></th>
+                    <th><input type="text" class="form-control form-control-sm" placeholder="Filter…" style="font-size:.76rem;border-radius:6px;"></th>
+                    <th><input type="text" class="form-control form-control-sm" placeholder="Filter…" style="font-size:.76rem;border-radius:6px;"></th>
+                    <th><input type="text" class="form-control form-control-sm" placeholder="Filter…" style="font-size:.76rem;border-radius:6px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model?.RecentActivities != null)
+                {
+                    foreach (var act in Model.RecentActivities.OrderByDescending(a => a.Date))
                     {
                         <tr>
                             <td>@act.User</td>
@@ -93,32 +1225,600 @@
                             <td>@act.Date.ToString("dd MMM yyyy")</td>
                         </tr>
                     }
-                </tbody>
-            </table>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MODAL: ADD / EDIT LIBRARY
+═══════════════════════════════════════════════ -->
+<div class="modal fade ak-modal" id="libraryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-header-band" style="width:100%;">
+                    <div class="modal-header-icon" id="modalHeaderIcon"><i class="bi bi-collection-fill"></i></div>
+                    <div style="flex:1;">
+                        <div class="modal-header-title" id="modalTitle">New Library</div>
+                        <div class="modal-header-sub" id="modalSubtitle">Define the library and its metadata schema</div>
+                    </div>
+                    <button class="modal-close-btn" data-bs-dismiss="modal"><i class="bi bi-x"></i></button>
+                </div>
+            </div>
+            <div class="modal-colorbar"></div>
+            <div class="modal-body">
+                <div class="ak-tabs" id="modalTabs">
+                    <button class="ak-tab active" onclick="switchTab('tabDetails', this)">
+                        <i class="bi bi-info-circle"></i> Library Details
+                    </button>
+                    <button class="ak-tab" onclick="switchTab('tabMeta', this)">
+                        <i class="bi bi-tags"></i> Metadata Fields
+                        <span id="metaCountBadge" style="background:var(--ak-blue-light);color:var(--ak-blue-dark);border-radius:99px;padding:0 6px;font-size:.64rem;">0</span>
+                    </button>
+                </div>
+
+                <!-- TAB 1: Library Details -->
+                <div class="ak-tab-panel active" id="tabDetails">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="ak-label">Library Name <span class="required">*</span></label>
+                            <input type="text" id="libName" class="ak-input" placeholder="e.g. HR Documents">
+                            <p class="ak-hint"><i class="bi bi-info-circle"></i> Display name shown in the sidebar and headers.</p>
+                        </div>
+                        <div class="col-12">
+                            <label class="ak-label">SharePoint URL / Relative Path <span class="required">*</span></label>
+                            <input type="text" id="libUrl" class="ak-input" placeholder="e.g. /sites/company/HRDocuments">
+                            <p class="ak-hint"><i class="bi bi-info-circle"></i> Server-relative URL to the SharePoint document library.</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="ak-label">Icon</label>
+                            <select id="libIcon" class="ak-select">
+                                <option value="bi bi-folder2">📁  Folder (default)</option>
+                                <option value="bi bi-people">👥  People / HR</option>
+                                <option value="bi bi-briefcase">💼  Briefcase / Business</option>
+                                <option value="bi bi-file-earmark-text">📄  Documents</option>
+                                <option value="bi bi-bar-chart">📊  Reports / Finance</option>
+                                <option value="bi bi-gear">⚙️  Operations</option>
+                                <option value="bi bi-shield-check">🛡️  Compliance / Legal</option>
+                                <option value="bi bi-building">🏢  Corporate</option>
+                                <option value="bi bi-clipboard2-data">📋  Projects</option>
+                                <option value="bi bi-envelope">✉️  Correspondence</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="ak-label">Access Level</label>
+                            <select id="libAccess" class="ak-select">
+                                <option value="all">All Users</option>
+                                <option value="admin">Admins Only</option>
+                                <option value="dept">Department</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="ak-label">Description</label>
+                            <textarea id="libDesc" class="ak-textarea" placeholder="Describe what this library is for…"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: Metadata Fields -->
+                <div class="ak-tab-panel" id="tabMeta">
+                    <p style="font-size:.78rem;color:var(--text-secondary);margin-bottom:14px;">
+                        Define custom metadata fields that users must fill in when uploading documents to this library.
+                    </p>
+                    <div class="meta-fields-header">
+                        <span>Field Name</span><span>Type</span><span style="text-align:center;">Required</span><span></span>
+                    </div>
+                    <div class="meta-fields-list" id="metaFieldsList"></div>
+                    <button class="btn-add-field" onclick="addMetaField()">
+                        <i class="bi bi-plus-lg"></i> Add Metadata Field
+                    </button>
+                    <div style="margin-top:16px;padding:12px;background:var(--surface-subtle);border-radius:9px;border:1px solid var(--border-light);">
+                        <p style="font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Field Types</p>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                            <span class="lib-meta-chip type-text"><i class="bi bi-fonts"></i> Text</span>
+                            <span class="lib-meta-chip type-number"><i class="bi bi-hash"></i> Number</span>
+                            <span class="lib-meta-chip type-date"><i class="bi bi-calendar3"></i> Date</span>
+                            <span class="lib-meta-chip type-choice"><i class="bi bi-list-ul"></i> Choice</span>
+                            <span class="lib-meta-chip type-boolean"><i class="bi bi-toggle-on"></i> Yes/No</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-ak-cancel" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn-ak-save" onclick="saveLibrary()">
+                    <i class="bi bi-check-lg"></i>
+                    <span id="saveLibBtnText">Save Library</span>
+                </button>
+            </div>
         </div>
     </div>
+</div>
 
+<!-- ═══════════════════════════════════════════════
+     MODAL: VIEW METADATA SCHEMA
+═══════════════════════════════════════════════ -->
+<div class="modal fade ak-modal" id="metaViewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width:580px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-header-band" style="width:100%;">
+                    <div class="modal-header-icon purple"><i class="bi bi-tags-fill"></i></div>
+                    <div style="flex:1;">
+                        <div class="modal-header-title" id="metaViewLibName">Metadata Schema</div>
+                        <div class="modal-header-sub" id="metaViewLibUrl"></div>
+                    </div>
+                    <button class="modal-close-btn" data-bs-dismiss="modal"><i class="bi bi-x"></i></button>
+                </div>
+            </div>
+            <div class="modal-colorbar" style="background:linear-gradient(90deg,#A855F7,#7C3AED);"></div>
+            <div class="modal-body">
 
+                <!-- DMS-configured fields -->
+                <div class="modal-section-label" style="margin-top:0;">
+                    DMS Metadata Fields
+                    <span style="font-size:.64rem;color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(configured in this DMS)</span>
+                </div>
+                <div id="metaViewDmsFields"></div>
 
+                <!-- Live SharePoint columns -->
+                <div class="sp-fields-section">
+                    <div class="modal-section-label" style="margin-top:0;">
+                        SharePoint Columns
+                        <span style="font-size:.64rem;color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(live from SharePoint)</span>
+                    </div>
+                    <div id="metaViewSpFields">
+                        <div class="meta-spinner">
+                            <div class="spinner-border text-secondary" role="status"></div>
+                            Loading SharePoint columns…
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button class="btn-ak-cancel" data-bs-dismiss="modal">Close</button>
+                <button class="btn-ak-purple" id="metaViewEditBtn">
+                    <i class="bi bi-pencil"></i> Edit Library
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MODAL: CONFIRM DELETE
+═══════════════════════════════════════════════ -->
+<div class="modal fade ak-modal" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-header-band" style="width:100%;">
+                    <div class="modal-header-icon" style="background:rgba(232,79,38,.3);"><i class="bi bi-trash3"></i></div>
+                    <div style="flex:1;">
+                        <div class="modal-header-title">Delete Library</div>
+                        <div class="modal-header-sub">This action cannot be undone</div>
+                    </div>
+                    <button class="modal-close-btn" data-bs-dismiss="modal"><i class="bi bi-x"></i></button>
+                </div>
+            </div>
+            <div class="modal-colorbar" style="background:var(--ak-red);"></div>
+            <div class="modal-body" style="text-align:center;padding:28px 24px;">
+                <div class="delete-confirm-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <p style="font-size:.88rem;color:var(--text-body);margin-bottom:6px;">
+                    Are you sure you want to remove <strong id="deleteLibName" style="color:var(--text-heading);">"Library"</strong> from the DMS?
+                </p>
+                <p style="font-size:.76rem;color:var(--text-muted);">
+                    This only removes it from the DMS configuration. The SharePoint library itself will not be affected.
+                </p>
+            </div>
+            <div class="modal-footer" style="justify-content:center;">
+                <button class="btn-ak-cancel" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn-ak-save" onclick="confirmDelete()" style="background:linear-gradient(135deg,var(--ak-red),#c73e1a);">
+                    <i class="bi bi-trash3"></i> Yes, Remove
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="ak-toast" id="akToast">
+    <div class="ak-toast-icon success" id="toastIcon"><i class="bi bi-check-lg"></i></div>
+    <span id="toastMsg">Saved successfully</span>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCRIPT
+═══════════════════════════════════════════════ -->
 <script>
-    $(document).ready(function () {
-        // Initialize DataTable
-        var table = $('#recentActivitiesTable').DataTable({
-            paging: true,
-            ordering: true,
-            info: true,
-            orderCellsTop: true,
-            fixedHeader: true,
-            responsive: true
+// ─── State ────────────────────────────────────────────────────────────
+const STORE_KEY = 'ak_dms_libraries';
+let libraries   = [];
+let editId      = null;
+let deleteId    = null;
+
+// ─── Seed from ViewBag (server-side libraries) ────────────────────────
+(function seedFromServer() {
+    @if (ViewBag.Libraries != null) {
+        foreach (var lib in ViewBag.Libraries) {
+            <text>
+            if (!libraries.find(l => l.url === '@Html.Raw(lib.Url)')) {
+                libraries.push({
+                    id: '@Html.Raw(lib.Url)', name: '@Html.Raw(lib.Title)',
+                    url: '@Html.Raw(lib.Url)', icon: 'bi bi-folder2',
+                    access: 'all', desc: '', fields: []
+                });
+            }
+            </text>
+        }
+    }
+})();
+
+// Merge locally-saved customisations on top
+const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+if (saved && Array.isArray(saved)) {
+    saved.forEach(s => {
+        const idx = libraries.findIndex(l => l.id === s.id);
+        if (idx >= 0) libraries[idx] = { ...libraries[idx], ...s };
+        else libraries.push(s);
+    });
+}
+
+// ─── Persist ──────────────────────────────────────────────────────────
+function persist() { localStorage.setItem(STORE_KEY, JSON.stringify(libraries)); }
+
+// ─── Render grid ──────────────────────────────────────────────────────
+function renderGrid() {
+    const grid  = document.getElementById('libGrid');
+    const empty = document.getElementById('libEmptyState');
+    grid.querySelectorAll('.lib-card, .lib-card-add').forEach(n => n.remove());
+    document.getElementById('statLibCount').textContent = libraries.length;
+    document.getElementById('statMetaCount').textContent = libraries.reduce((s, l) => s + (l.fields?.length || 0), 0);
+    if (libraries.length === 0) {
+        empty.style.display = 'flex';
+    } else {
+        empty.style.display = 'none';
+        libraries.forEach(lib => grid.insertBefore(buildCard(lib), empty));
+    }
+    const addCard = document.createElement('div');
+    addCard.className = 'lib-card-add';
+    addCard.onclick = () => openAddLibrary();
+    addCard.innerHTML = `<div class="lib-card-add-icon"><i class="bi bi-plus-lg"></i></div><span>Add New Library</span>`;
+    grid.insertBefore(addCard, empty);
+}
+
+function buildCard(lib) {
+    const card = document.createElement('div');
+    card.className = 'lib-card';
+    const fields      = lib.fields || [];
+    const shownFields = fields.slice(0, 3);
+    const moreCount   = fields.length - shownFields.length;
+    const typeClass = { text:'type-text', number:'type-number', date:'type-date', choice:'type-choice', boolean:'type-boolean' };
+    const typeIcon  = { text:'bi-fonts', number:'bi-hash', date:'bi-calendar3', choice:'bi-list-ul', boolean:'bi-toggle-on' };
+    const chipsHtml = shownFields.map(f =>
+        `<span class="lib-meta-chip ${typeClass[f.type]||''}">
+            <i class="bi ${typeIcon[f.type]||'bi-tag'}"></i>
+            ${escHtml(f.name)}${f.required ? '<span style="color:var(--ak-red);margin-left:2px;">*</span>' : ''}
+        </span>`
+    ).join('');
+    const moreChip = moreCount > 0
+        ? `<span class="lib-meta-chip-more" onclick="openMetaView('${escAttr(lib.id)}')" title="View all fields">+${moreCount} more</span>`
+        : '';
+
+    card.innerHTML = `
+        <div class="lib-card-header">
+            <div class="lib-card-icon"><i class="${escHtml(lib.icon || 'bi bi-folder2')}"></i></div>
+            <div style="flex:1;min-width:0;">
+                <div class="lib-card-name">${escHtml(lib.name)}</div>
+                <div class="lib-card-url">${escHtml(lib.url)}</div>
+            </div>
+        </div>
+        ${lib.desc ? `<p style="font-size:.76rem;color:var(--text-muted);margin:0;line-height:1.5;">${escHtml(lib.desc)}</p>` : ''}
+        <div class="lib-meta-chips">
+            ${fields.length === 0
+                ? '<span style="font-size:.72rem;color:var(--text-muted);font-style:italic;">No metadata fields configured</span>'
+                : chipsHtml + moreChip}
+        </div>
+        <div class="lib-card-actions">
+            <button class="lib-action-btn edit" onclick="openEditLibrary('${escAttr(lib.id)}')">
+                <i class="bi bi-pencil"></i> Edit
+            </button>
+            <button class="lib-action-btn meta" onclick="openMetaView('${escAttr(lib.id)}')">
+                <i class="bi bi-tags"></i> Metadata
+            </button>
+            <a class="lib-action-btn open" href="/Home/DocumentLibrary?libraryUrl=${encodeURIComponent(lib.url)}">
+                <i class="bi bi-box-arrow-up-right"></i> Open
+            </a>
+            <button class="lib-action-btn danger" onclick="openDeleteModal('${escAttr(lib.id)}')">
+                <i class="bi bi-trash3"></i>
+            </button>
+        </div>`;
+    return card;
+}
+
+// ─── Add library ──────────────────────────────────────────────────────
+function openAddLibrary() {
+    editId = null;
+    document.getElementById('modalTitle').textContent    = 'New Library';
+    document.getElementById('modalSubtitle').textContent = 'Define a new document library and its metadata schema';
+    document.getElementById('modalHeaderIcon').className = 'modal-header-icon blue';
+    document.getElementById('saveLibBtnText').textContent = 'Save Library';
+    document.getElementById('libName').value   = '';
+    document.getElementById('libUrl').value    = '';
+    document.getElementById('libIcon').value   = 'bi bi-folder2';
+    document.getElementById('libAccess').value = 'all';
+    document.getElementById('libDesc').value   = '';
+    clearMetaFields();
+    switchTab('tabDetails', document.querySelector('.ak-tab'));
+    new bootstrap.Modal('#libraryModal').show();
+}
+
+// ─── Edit library ─────────────────────────────────────────────────────
+function openEditLibrary(id) {
+    const lib = libraries.find(l => l.id === id);
+    if (!lib) return;
+    editId = id;
+    document.getElementById('modalTitle').textContent    = 'Edit Library';
+    document.getElementById('modalSubtitle').textContent = `Editing: ${lib.name}`;
+    document.getElementById('modalHeaderIcon').className = 'modal-header-icon yellow';
+    document.getElementById('saveLibBtnText').textContent = 'Update Library';
+    document.getElementById('libName').value   = lib.name;
+    document.getElementById('libUrl').value    = lib.url;
+    document.getElementById('libIcon').value   = lib.icon   || 'bi bi-folder2';
+    document.getElementById('libAccess').value = lib.access || 'all';
+    document.getElementById('libDesc').value   = lib.desc   || '';
+    clearMetaFields();
+    (lib.fields || []).forEach(f => addMetaField(f.name, f.type, f.required));
+    updateMetaBadge();
+    switchTab('tabDetails', document.querySelectorAll('.ak-tab')[0]);
+    new bootstrap.Modal('#libraryModal').show();
+}
+
+// ─── View Metadata modal ──────────────────────────────────────────────
+function openMetaView(id) {
+    const lib = libraries.find(l => l.id === id);
+    if (!lib) return;
+
+    document.getElementById('metaViewLibName').textContent = lib.name + ' — Metadata Schema';
+    document.getElementById('metaViewLibUrl').textContent  = lib.url;
+    document.getElementById('metaViewEditBtn').onclick = function() {
+        bootstrap.Modal.getInstance('#metaViewModal')?.hide();
+        setTimeout(() => openEditLibrary(id), 220);
+    };
+
+    // ── DMS fields (locally configured) ──────────────────────────────
+    const dmsContainer = document.getElementById('metaViewDmsFields');
+    const fields = lib.fields || [];
+    const typeClass = { text:'type-text', number:'type-number', date:'type-date', choice:'type-choice', boolean:'type-boolean' };
+    const typeIcon  = { text:'bi-fonts', number:'bi-hash', date:'bi-calendar3', choice:'bi-list-ul', boolean:'bi-toggle-on' };
+
+    if (fields.length === 0) {
+        dmsContainer.innerHTML = `
+            <div style="padding:18px;text-align:center;color:var(--text-muted);font-size:.8rem;
+                        background:var(--surface-subtle);border-radius:8px;border:1.5px dashed var(--border-mid);">
+                <i class="bi bi-tags" style="font-size:1.4rem;display:block;margin-bottom:6px;opacity:.35;"></i>
+                No metadata fields configured yet.<br>
+                <button onclick="bootstrap.Modal.getInstance('#metaViewModal')?.hide();setTimeout(()=>openEditLibrary('${escAttr(id)}'),220);"
+                    class="btn-ak-purple" style="margin-top:10px;padding:6px 14px;font-size:.75rem;">
+                    <i class="bi bi-plus-lg"></i> Add Fields
+                </button>
+            </div>`;
+    } else {
+        dmsContainer.innerHTML = `<div class="meta-view-list">${
+            fields.map(f => `
+                <div class="meta-view-row">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span class="lib-meta-chip ${typeClass[f.type]||''}">
+                            <i class="bi ${typeIcon[f.type]||'bi-tag'}"></i> ${escHtml(capitalize(f.type))}
+                        </span>
+                        <span class="meta-view-name">${escHtml(f.name)}</span>
+                    </div>
+                    ${f.required
+                        ? '<span class="meta-view-req">Required</span>'
+                        : '<span style="font-size:.64rem;color:var(--text-muted);">Optional</span>'}
+                </div>`).join('')
+        }</div>`;
+    }
+
+    // ── SharePoint columns (live) ─────────────────────────────────────
+    const spContainer = document.getElementById('metaViewSpFields');
+    spContainer.innerHTML = `
+        <div class="meta-spinner">
+            <div class="spinner-border text-secondary" role="status"></div>
+            Loading SharePoint columns…
+        </div>`;
+
+    fetch(`/Home/GetLibraryFields?libraryUrl=${encodeURIComponent(lib.url)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success || !data.fields || data.fields.length === 0) {
+                spContainer.innerHTML = `
+                    <div style="padding:14px;text-align:center;color:var(--text-muted);font-size:.78rem;
+                                background:var(--surface-subtle);border-radius:8px;">
+                        <i class="bi bi-cloud-slash" style="font-size:1.2rem;opacity:.4;display:block;margin-bottom:4px;"></i>
+                        ${escHtml(data.message || 'No additional SharePoint columns found.')}
+                    </div>`;
+                return;
+            }
+            const typeMap = {
+                'Text':'Text','Note':'Text','Number':'Number','Currency':'Number','Integer':'Number',
+                'DateTime':'DateTime','Boolean':'Boolean','Choice':'Choice','Calculated':'other'
+            };
+            spContainer.innerHTML = data.fields.map(f => {
+                const norm = typeMap[f.fieldType] || 'other';
+                return `
+                    <div class="sp-field-row">
+                        <span class="sp-field-name">${escHtml(f.title)}</span>
+                        <span class="sp-field-type-badge ${norm}">${escHtml(f.fieldType)}</span>
+                        <span class="sp-field-internal">${escHtml(f.internalName)}</span>
+                        ${f.required ? '<span class="sp-field-req">Required</span>' : ''}
+                    </div>`;
+            }).join('');
+        })
+        .catch(() => {
+            spContainer.innerHTML = `
+                <div style="padding:14px;text-align:center;color:var(--text-muted);font-size:.78rem;
+                            background:var(--surface-subtle);border-radius:8px;">
+                    <i class="bi bi-exclamation-circle" style="display:block;margin-bottom:4px;opacity:.4;font-size:1.1rem;"></i>
+                    Could not reach SharePoint. Check your connection.
+                </div>`;
         });
 
-        // Apply column search
-        $('#recentActivitiesTable thead tr:eq(1) th').each(function (i) {
-            $('input', this).on('keyup change clear', function () {
-                if (table.column(i).search() !== this.value) {
-                    table.column(i).search(this.value).draw();
-                }
-            });
-        });
+    new bootstrap.Modal('#metaViewModal').show();
+}
+
+// ─── Save ─────────────────────────────────────────────────────────────
+function saveLibrary() {
+    const name   = document.getElementById('libName').value.trim();
+    const url    = document.getElementById('libUrl').value.trim();
+    const icon   = document.getElementById('libIcon').value;
+    const access = document.getElementById('libAccess').value;
+    const desc   = document.getElementById('libDesc').value.trim();
+    if (!name) { shakeField('libName'); showToast('Library name is required.', 'error'); return; }
+    if (!url)  { shakeField('libUrl');  showToast('SharePoint URL is required.', 'error'); return; }
+    const fields = collectMetaFields();
+    if (fields === null) return;
+
+    if (editId) {
+        const idx = libraries.findIndex(l => l.id === editId);
+        if (idx >= 0) libraries[idx] = { id: editId, name, url, icon, access, desc, fields };
+    } else {
+        if (libraries.find(l => l.url === url)) {
+            shakeField('libUrl'); showToast('A library with this URL already exists.', 'error'); return;
+        }
+        libraries.push({ id: url, name, url, icon, access, desc, fields });
+    }
+    persist();
+    renderGrid();
+    bootstrap.Modal.getInstance('#libraryModal')?.hide();
+    showToast(editId ? `"${name}" updated.` : `"${name}" added.`, 'success');
+
+    // Notify server — creates/updates SP library + adds columns
+    fetch('/Home/SaveLibrary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, url, icon, access, desc, fields })
+    })
+    .then(r => r.json())
+    .then(d => { if (!d.success) console.warn('SaveLibrary:', d.message); })
+    .catch(e => console.warn('SaveLibrary error:', e));
+}
+
+// ─── Meta field rows ──────────────────────────────────────────────────
+function clearMetaFields() { document.getElementById('metaFieldsList').innerHTML = ''; updateMetaBadge(); }
+
+function addMetaField(name = '', type = 'text', required = false) {
+    const list = document.getElementById('metaFieldsList');
+    const row  = document.createElement('div');
+    row.className = 'meta-field-row';
+    const opts = ['text','number','date','choice','boolean'].map(t =>
+        `<option value="${t}" ${t === type ? 'selected' : ''}>${capitalize(t)}</option>`
+    ).join('');
+    row.innerHTML = `
+        <input type="text" placeholder="Field name e.g. Department" value="${escAttr(name)}"
+               class="meta-name-input" oninput="updateMetaBadge()">
+        <select class="meta-type-select">${opts}</select>
+        <div class="req-toggle"><input type="checkbox" ${required ? 'checked' : ''} title="Required"></div>
+        <button class="btn-remove-field" onclick="removeMetaField(this)"><i class="bi bi-x"></i></button>`;
+    list.appendChild(row);
+    updateMetaBadge();
+    row.querySelector('input[type=text]')?.focus();
+}
+
+function removeMetaField(btn) { btn.closest('.meta-field-row').remove(); updateMetaBadge(); }
+
+function collectMetaFields() {
+    const rows = document.querySelectorAll('#metaFieldsList .meta-field-row');
+    const fields = []; let valid = true;
+    rows.forEach(row => {
+        const nameEl = row.querySelector('.meta-name-input');
+        const name   = nameEl.value.trim();
+        const type   = row.querySelector('.meta-type-select').value;
+        const req    = row.querySelector('input[type=checkbox]').checked;
+        if (!name) { nameEl.style.borderColor = 'var(--ak-red)'; valid = false; }
+        else nameEl.style.borderColor = '';
+        fields.push({ name, type, required: req });
     });
+    if (!valid) { showToast('Fill in all metadata field names.', 'error'); switchTab('tabMeta', document.querySelectorAll('.ak-tab')[1]); return null; }
+    return fields;
+}
+
+function updateMetaBadge() { document.getElementById('metaCountBadge').textContent = document.querySelectorAll('#metaFieldsList .meta-field-row').length; }
+
+// ─── Delete ───────────────────────────────────────────────────────────
+function openDeleteModal(id) {
+    const lib = libraries.find(l => l.id === id);
+    if (!lib) return;
+    deleteId = id;
+    document.getElementById('deleteLibName').textContent = lib.name;
+    new bootstrap.Modal('#deleteModal').show();
+}
+
+function confirmDelete() {
+    if (!deleteId) return;
+    const lib = libraries.find(l => l.id === deleteId);
+    libraries = libraries.filter(l => l.id !== deleteId);
+    persist(); renderGrid();
+    bootstrap.Modal.getInstance('#deleteModal')?.hide();
+    showToast(`"${lib?.name || 'Library'}" removed.`, 'success');
+    deleteId = null;
+    // Notify server
+    fetch('/Home/RemoveLibrary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: lib?.url })
+    })
+    .then(r => r.json())
+    .then(d => { if (!d.success) console.warn('RemoveLibrary:', d.message); })
+    .catch(e => console.warn('RemoveLibrary error:', e));
+}
+
+// ─── Tabs ─────────────────────────────────────────────────────────────
+function switchTab(panelId, btn) {
+    document.querySelectorAll('.ak-tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.ak-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById(panelId)?.classList.add('active');
+    if (btn) btn.classList.add('active');
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type = 'success') {
+    const toast = document.getElementById('akToast');
+    const icon  = document.getElementById('toastIcon');
+    document.getElementById('toastMsg').textContent = msg;
+    icon.className = `ak-toast-icon ${type}`;
+    icon.innerHTML = type === 'success' ? '<i class="bi bi-check-lg"></i>' : '<i class="bi bi-exclamation-circle"></i>';
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────
+function shakeField(id) {
+    const el = document.getElementById(id);
+    el.style.borderColor = 'var(--ak-red)';
+    el.style.boxShadow   = '0 0 0 3px rgba(232,79,38,.15)';
+    el.animate([{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(-4px)'},{transform:'translateX(0)'}], { duration: 300 });
+    el.addEventListener('input', () => { el.style.borderColor = ''; el.style.boxShadow = ''; }, { once: true });
+}
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s||'').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// ─── Init ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    renderGrid();
+    const table = $('#recentActivitiesTable').DataTable({
+        paging: true, ordering: true, info: true,
+        orderCellsTop: true, fixedHeader: true, responsive: true,
+        language: { search: '', searchPlaceholder: 'Search all…' }
+    });
+    $('#recentActivitiesTable thead tr:eq(1) th').each(function(i) {
+        $('input', this).on('keyup change', function() { table.column(i).search(this.value).draw(); });
+    });
+    document.getElementById('libraryModal').addEventListener('hidden.bs.modal', () => { editId = null; });
+});
 </script>
