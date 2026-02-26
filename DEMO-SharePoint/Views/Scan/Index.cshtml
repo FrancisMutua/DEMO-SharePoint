@@ -1,0 +1,725 @@
+﻿@model ScanPortal.Web.ViewModels.ScanIndexViewModel
+@{
+    ViewBag.Title = "Scan Document";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Scan Document — DMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+:root {
+    --scan-bg:       #0d1117;
+    --scan-surface:  #161b22;
+    --scan-surface2: #21262d;
+    --scan-border:   #30363d;
+    --scan-accent:   #e84f26;
+    --scan-accent2:  #ff6b47;
+    --scan-success:  #3fb950;
+    --scan-warning:  #d29922;
+    --scan-muted:    #8b949e;
+    --scan-text:     #e6edf3;
+    --scan-subtext:  #c9d1d9;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+
+body {
+    background:var(--scan-bg);
+    color:var(--scan-text);
+    font-family:var(--sans);
+    min-height:100vh;
+}
+
+/* ── Top bar ── */
+.scan-topbar {
+    background:var(--scan-surface);
+    border-bottom:1px solid var(--scan-border);
+    padding:12px 32px;
+    display:flex; align-items:center; gap:16px;
+}
+.scan-topbar .brand {
+    font-family:var(--mono); font-size:.78rem; font-weight:600;
+    color:var(--scan-accent); letter-spacing:.12em; text-transform:uppercase;
+    display:flex; align-items:center; gap:8px;
+}
+.scan-topbar .brand-dot {
+    width:7px; height:7px; border-radius:50%;
+    background:var(--scan-accent);
+    animation:pulse 2s ease-in-out infinite;
+}
+@@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.7)} }
+
+/* ── Layout ── */
+.scan-shell {
+    max-width:1100px; margin:0 auto; padding:40px 24px;
+}
+.scan-page-title {
+    font-family:var(--mono); font-size:1.4rem; font-weight:600;
+    color:var(--scan-text); letter-spacing:-.01em; margin-bottom:6px;
+}
+.scan-page-sub {
+    font-size:.82rem; color:var(--scan-muted); margin-bottom:36px;
+    font-family:var(--mono);
+}
+
+/* ── Cards ── */
+.scan-card {
+    background:var(--scan-surface);
+    border:1px solid var(--scan-border);
+    border-radius:10px;
+    overflow:hidden;
+}
+.scan-card-header {
+    padding:14px 20px;
+    border-bottom:1px solid var(--scan-border);
+    display:flex; align-items:center; gap:10px;
+    background:var(--scan-surface2);
+}
+.scan-card-header .card-icon {
+    width:30px; height:30px; border-radius:7px;
+    background:rgba(232,79,38,.12);
+    display:flex; align-items:center; justify-content:center;
+    font-size:.9rem; color:var(--scan-accent);
+}
+.scan-card-header h6 {
+    font-family:var(--mono); font-size:.78rem; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--scan-subtext);
+    margin:0;
+}
+.scan-card-body { padding:22px; }
+
+/* ── Status badge ── */
+.agent-status {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 12px; border-radius:20px;
+    font-family:var(--mono); font-size:.72rem; font-weight:600;
+    letter-spacing:.06em;
+}
+.agent-status.online  { background:rgba(63,185,80,.12); color:var(--scan-success); border:1px solid rgba(63,185,80,.25); }
+.agent-status.offline { background:rgba(232,79,38,.12); color:var(--scan-accent); border:1px solid rgba(232,79,38,.25); }
+.agent-dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+.agent-status.online .agent-dot { animation:pulse 1.5s infinite; }
+
+/* ── Scanner tiles ── */
+.scanner-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+.scanner-tile {
+    background:var(--scan-surface2);
+    border:2px solid var(--scan-border);
+    border-radius:8px;
+    padding:16px;
+    cursor:pointer;
+    transition:all .18s;
+    position:relative;
+}
+.scanner-tile:hover { border-color:rgba(232,79,38,.5); background:#1c2128; }
+.scanner-tile.selected { border-color:var(--scan-accent); background:rgba(232,79,38,.06); }
+.scanner-tile.selected::after {
+    content:'\F26E'; font-family:'bootstrap-icons';
+    position:absolute; top:10px; right:12px;
+    color:var(--scan-accent); font-size:.9rem;
+}
+.scanner-tile .tile-icon {
+    font-size:1.6rem; color:var(--scan-muted); margin-bottom:10px;
+    display:block;
+}
+.scanner-tile.selected .tile-icon { color:var(--scan-accent); }
+.scanner-tile .tile-name {
+    font-family:var(--mono); font-size:.78rem; font-weight:600; color:var(--scan-text);
+}
+.scanner-tile .tile-status {
+    font-size:.68rem; color:var(--scan-success); margin-top:3px;
+    font-family:var(--mono);
+}
+
+/* ── Profile tiles ── */
+.profile-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.profile-tile {
+    background:var(--scan-surface2);
+    border:2px solid var(--scan-border);
+    border-radius:8px; padding:14px;
+    cursor:pointer; transition:all .18s;
+    text-align:center;
+}
+.profile-tile:hover { border-color:rgba(232,79,38,.4); }
+.profile-tile.selected { border-color:var(--scan-accent); background:rgba(232,79,38,.06); }
+.profile-tile .profile-dpi {
+    font-family:var(--mono); font-size:1.3rem; font-weight:600;
+    color:var(--scan-accent); line-height:1;
+}
+.profile-tile .profile-name {
+    font-size:.72rem; color:var(--scan-muted); margin-top:4px;
+    font-family:var(--mono);
+}
+.profile-tile .profile-tags { display:flex; flex-wrap:wrap; gap:4px; justify-content:center; margin-top:8px; }
+.profile-tag {
+    font-size:.62rem; padding:2px 7px; border-radius:10px;
+    background:var(--scan-border); color:var(--scan-muted);
+    font-family:var(--mono);
+}
+
+/* ── Form controls ── */
+.scan-label {
+    display:block; font-family:var(--mono); font-size:.7rem; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--scan-muted);
+    margin-bottom:6px;
+}
+.scan-control {
+    width:100%; background:var(--scan-surface2); border:1px solid var(--scan-border);
+    color:var(--scan-text); border-radius:7px; padding:9px 13px;
+    font-size:.83rem; font-family:var(--sans);
+    transition:border-color .18s;
+    appearance:none; -webkit-appearance:none;
+}
+.scan-control:focus { outline:none; border-color:var(--scan-accent); box-shadow:0 0 0 3px rgba(232,79,38,.12); }
+.scan-control option { background:var(--scan-surface2); }
+
+/* ── Toggles ── */
+.scan-toggle { display:flex; align-items:center; gap:10px; cursor:pointer; }
+.toggle-track {
+    width:42px; height:24px; border-radius:12px;
+    background:var(--scan-border); position:relative;
+    transition:background .2s; flex-shrink:0;
+}
+.toggle-thumb {
+    width:18px; height:18px; border-radius:50%; background:#fff;
+    position:absolute; top:3px; left:3px;
+    transition:transform .2s, background .2s;
+    box-shadow:0 1px 4px rgba(0,0,0,.4);
+}
+input[type=checkbox]:checked + .toggle-track { background:var(--scan-accent); }
+input[type=checkbox]:checked + .toggle-track .toggle-thumb { transform:translateX(18px); }
+input[type=checkbox].scan-chk { display:none; }
+.toggle-label { font-size:.82rem; color:var(--scan-subtext); user-select:none; }
+
+/* ── Separator ── */
+.scan-sep {
+    border:none; border-top:1px solid var(--scan-border); margin:20px 0;
+}
+
+/* ── Scan button ── */
+.btn-scan {
+    background:var(--scan-accent); color:#fff;
+    border:none; border-radius:8px;
+    padding:13px 36px; font-family:var(--mono);
+    font-size:.82rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+    cursor:pointer; transition:all .18s;
+    display:inline-flex; align-items:center; gap:10px;
+}
+.btn-scan:hover { background:var(--scan-accent2); transform:translateY(-1px); box-shadow:0 4px 20px rgba(232,79,38,.3); }
+.btn-scan:active { transform:translateY(0); }
+.btn-scan:disabled { opacity:.4; cursor:not-allowed; transform:none; box-shadow:none; }
+.btn-scan-outline {
+    background:transparent; color:var(--scan-muted);
+    border:1px solid var(--scan-border); border-radius:8px;
+    padding:12px 24px; font-family:var(--mono); font-size:.8rem; font-weight:600;
+    cursor:pointer; transition:all .18s;
+    display:inline-flex; align-items:center; gap:8px;
+}
+.btn-scan-outline:hover { border-color:var(--scan-muted); color:var(--scan-text); }
+
+/* ── Progress overlay ── */
+.scan-progress-overlay {
+    display:none; position:fixed; inset:0; background:rgba(13,17,23,.88);
+    backdrop-filter:blur(8px); z-index:9000;
+    align-items:center; justify-content:center; flex-direction:column; gap:24px;
+}
+.scan-progress-overlay.show { display:flex; }
+.progress-ring-wrap { position:relative; width:120px; height:120px; }
+.progress-ring-bg { fill:none; stroke:var(--scan-border); stroke-width:6; }
+.progress-ring-bar {
+    fill:none; stroke:var(--scan-accent); stroke-width:6;
+    stroke-linecap:round;
+    stroke-dasharray:339; stroke-dashoffset:339;
+    transform:rotate(-90deg); transform-origin:60px 60px;
+    transition:stroke-dashoffset .4s ease;
+}
+.progress-ring-pct {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:1.3rem; font-weight:700; color:var(--scan-text);
+}
+.progress-status {
+    font-family:var(--mono); font-size:.82rem; color:var(--scan-muted); text-align:center;
+}
+.progress-pages { font-size:.72rem; color:var(--scan-muted); font-family:var(--mono); margin-top:4px; }
+.scan-log {
+    background:var(--scan-surface); border:1px solid var(--scan-border);
+    border-radius:8px; padding:14px 18px;
+    font-family:var(--mono); font-size:.72rem; color:var(--scan-muted);
+    width:360px; max-height:140px; overflow-y:auto;
+    line-height:1.8;
+}
+.log-line.ok   { color:var(--scan-success); }
+.log-line.warn { color:var(--scan-warning); }
+.log-line.err  { color:var(--scan-accent);  }
+
+/* ── Offline banner ── */
+.offline-banner {
+    background:rgba(232,79,38,.08); border:1px solid rgba(232,79,38,.25);
+    border-radius:8px; padding:14px 18px;
+    display:flex; align-items:center; gap:12px;
+    font-size:.82rem; color:var(--scan-accent);
+    margin-bottom:24px;
+}
+
+/* ── Steps ── */
+.scan-steps { display:flex; align-items:center; margin-bottom:32px; }
+.scan-step  { display:flex; align-items:center; gap:8px; }
+.step-circle {
+    width:34px; height:34px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:.8rem; font-weight:700; flex-shrink:0;
+    border:2px solid var(--scan-border);
+    background:var(--scan-surface2);
+    color:var(--scan-muted); transition:all .25s;
+    font-family:var(--mono);
+}
+.scan-step.active .step-circle { background:var(--scan-accent); border-color:var(--scan-accent); color:#fff; box-shadow:0 0 0 4px rgba(232,79,38,.15); }
+.scan-step.done   .step-circle { background:var(--scan-success); border-color:var(--scan-success); color:#fff; }
+.step-label { font-family:var(--mono); font-size:.68rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--scan-muted); white-space:nowrap; }
+.scan-step.active .step-label  { color:var(--scan-accent); }
+.scan-step.done   .step-label  { color:var(--scan-success); }
+.step-line { flex:1; min-width:20px; height:2px; background:var(--scan-border); margin:0 8px; }
+.scan-step.done .step-line { background:var(--scan-success); }
+    </style>
+</head>
+<body>
+
+    <div class="scan-topbar">
+        <div class="brand">
+            <div class="brand-dot"></div>
+            DMS · Scan Portal
+        </div>
+        <div style="flex:1"></div>
+        @if (Model.AgentOnline)
+        {
+            <span class="agent-status online">
+                <span class="agent-dot"></span> Agent Online
+            </span>
+        }
+        else
+        {
+            <span class="agent-status offline">
+                <span class="agent-dot"></span> Agent Offline
+            </span>
+        }
+    </div>
+
+    <div class="scan-shell">
+
+        <!-- Steps -->
+        <div class="scan-steps">
+            <div class="scan-step active"><div class="step-circle"><i class="bi bi-printer"></i></div><span class="step-label">Scanner</span></div>
+            <div class="step-line"></div>
+            <div class="scan-step pending"><div class="step-circle"><i class="bi bi-arrow-repeat"></i></div><span class="step-label">Scanning</span></div>
+            <div class="step-line"></div>
+            <div class="scan-step pending"><div class="step-circle"><i class="bi bi-eye"></i></div><span class="step-label">Preview</span></div>
+            <div class="step-line"></div>
+            <div class="scan-step pending"><div class="step-circle"><i class="bi bi-tags"></i></div><span class="step-label">Metadata</span></div>
+            <div class="step-line"></div>
+            <div class="scan-step pending"><div class="step-circle"><i class="bi bi-check-circle"></i></div><span class="step-label">Complete</span></div>
+        </div>
+
+        <div class="scan-page-title">// new_scan.init()</div>
+        <div class="scan-page-sub">Select a network scanner and configure scan parameters</div>
+
+        @if (!Model.AgentOnline)
+        {
+            <div class="offline-banner">
+                <i class="bi bi-exclamation-triangle" style="font-size:1.2rem;flex-shrink:0;"></i>
+                <div>
+                    <strong>Scanner agent unavailable</strong> — @Model.AgentErrorMessage
+                    <div style="font-size:.75rem;margin-top:2px;opacity:.75;">
+                        Ensure the scan agent service is running and accessible on the network.
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="row g-4">
+
+            <!-- LEFT: Scanner + Profile selection -->
+            <div class="col-lg-7">
+
+                <!-- Scanner selection -->
+                <div class="scan-card mb-4">
+                    <div class="scan-card-header">
+                        <div class="card-icon"><i class="bi bi-printer"></i></div>
+                        <h6>Available Scanners</h6>
+                        <span style="margin-left:auto;font-family:var(--mono);font-size:.68rem;color:var(--scan-muted);">
+                            @Model.AvailableScanners.Count found
+                        </span>
+                    </div>
+                    <div class="scan-card-body">
+                        @if (Model.AvailableScanners.Any())
+                        {
+                            <div class="scanner-grid">
+                                @foreach (var scanner in Model.AvailableScanners)
+                                {
+                                    <div class="scanner-tile" onclick="selectScanner(this, '@scanner')">
+                                        <i class="bi bi-printer-fill tile-icon"></i>
+                                        <div class="tile-name">@scanner</div>
+                                        <div class="tile-status">● Ready</div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div style="text-align:center;padding:32px;color:var(--scan-muted);">
+                                <i class="bi bi-printer" style="font-size:2.5rem;opacity:.25;display:block;margin-bottom:10px;"></i>
+                                <span style="font-family:var(--mono);font-size:.78rem;">No scanners discovered on network</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Scan profiles -->
+                <div class="scan-card">
+                    <div class="scan-card-header">
+                        <div class="card-icon"><i class="bi bi-sliders"></i></div>
+                        <h6>Scan Profile</h6>
+                    </div>
+                    <div class="scan-card-body">
+                        <div class="profile-grid">
+                            @foreach (var p in Model.ScanProfiles)
+                            {
+                                var active = p.Id == 1;
+                                <div class="profile-tile @(active ? "selected" : "")"
+                                     onclick="selectProfile(this, @p.DPI, '@p.ColorMode', '@p.PaperSize', @(p.Duplex ? "true" : "false"), @(p.UseADF ? "true" : "false"))">
+                                    <div class="profile-dpi">@p.DPI</div>
+                                    <div class="profile-name">DPI</div>
+                                    <div class="profile-name" style="margin-top:2px;">@p.ProfileName</div>
+                                    <div class="profile-tags">
+                                        <span class="profile-tag">@p.ColorMode</span>
+                                        <span class="profile-tag">@p.PaperSize</span>
+                                        @if (p.Duplex)
+                                        {<span class="profile-tag">Duplex</span>}
+                                        @if (p.UseADF)
+                                        {<span class="profile-tag">ADF</span>}
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT: Settings panel -->
+            <div class="col-lg-5">
+                <div class="scan-card" style="position:sticky;top:20px;">
+                    <div class="scan-card-header">
+                        <div class="card-icon"><i class="bi bi-gear"></i></div>
+                        <h6>Scan Settings</h6>
+                    </div>
+                    <div class="scan-card-body">
+
+                        <!-- Hidden selection state -->
+                        <input type="hidden" id="selectedScanner" value="" />
+                        <input type="hidden" id="selectedDPI" value="300" />
+                        <input type="hidden" id="selectedColor" value="Grayscale" />
+                        <input type="hidden" id="selectedPaper" value="A4" />
+                        <input type="hidden" id="selectedDuplex" value="false" />
+                        <input type="hidden" id="selectedADF" value="true" />
+
+                        <!-- Scanner display -->
+                        <div style="margin-bottom:16px;">
+                            <label class="scan-label">Selected Scanner</label>
+                            <div id="scannerDisplay"
+                                 style="background:var(--scan-surface2);border:1px solid var(--scan-border);border-radius:7px;
+                                    padding:10px 14px;font-family:var(--mono);font-size:.78rem;color:var(--scan-muted);">
+                                — none selected —
+                            </div>
+                        </div>
+
+                        <hr class="scan-sep">
+
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <label class="scan-label">Resolution</label>
+                                <select id="dpiSelect" class="scan-control"
+                                        onchange="document.getElementById('selectedDPI').value=this.value">
+                                    <option value="150">150 DPI</option>
+                                    <option value="300" selected>300 DPI</option>
+                                    <option value="600">600 DPI</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="scan-label">Color Mode</label>
+                                <select id="colorSelect" class="scan-control"
+                                        onchange="document.getElementById('selectedColor').value=this.value">
+                                    <option value="Grayscale" selected>Grayscale</option>
+                                    <option value="Color">Color</option>
+                                    <option value="BlackWhite">B&W</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="scan-label">Paper Size</label>
+                                <select id="paperSelect" class="scan-control"
+                                        onchange="document.getElementById('selectedPaper').value=this.value">
+                                    <option value="A4" selected>A4</option>
+                                    <option value="A3">A3</option>
+                                    <option value="Letter">Letter</option>
+                                    <option value="Legal">Legal</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="scan-label">Target Library</label>
+                                <select id="librarySelect" class="scan-control">
+                                    <option value="">— Select —</option>
+                                    @foreach (var lib in Model.LibraryOptions)
+                                    {
+                                        <option value="@lib.Value">@lib.Text</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <hr class="scan-sep">
+
+                        <div style="display:flex;flex-direction:column;gap:14px;">
+                            <label class="scan-toggle">
+                                <input type="checkbox" class="scan-chk" id="chkDuplex">
+                                <div class="toggle-track"><div class="toggle-thumb"></div></div>
+                                <span class="toggle-label">Duplex (double-sided)</span>
+                            </label>
+                            <label class="scan-toggle">
+                                <input type="checkbox" class="scan-chk" id="chkADF" checked>
+                                <div class="toggle-track" style="background:var(--scan-accent)">
+                                    <div class="toggle-thumb" style="transform:translateX(18px)"></div>
+                                </div>
+                                <span class="toggle-label">Use ADF feeder</span>
+                            </label>
+                        </div>
+
+                        <hr class="scan-sep">
+
+                        <!-- Summary chip row -->
+                        <div id="settingsSummary" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;">
+                            <span class="profile-tag" style="font-size:.7rem;">300 DPI</span>
+                            <span class="profile-tag" style="font-size:.7rem;">Grayscale</span>
+                            <span class="profile-tag" style="font-size:.7rem;">A4</span>
+                            <span class="profile-tag" style="font-size:.7rem;">ADF</span>
+                        </div>
+
+                        <button class="btn-scan w-100" id="startScanBtn" onclick="startScan()" disabled>
+                            <i class="bi bi-play-circle"></i>
+                            Start Scan
+                        </button>
+                        <div id="scanBtnHint" style="text-align:center;margin-top:8px;font-family:var(--mono);font-size:.68rem;color:var(--scan-muted);">
+                            Select a scanner to continue
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── Scan progress overlay ── -->
+    <div class="scan-progress-overlay" id="progressOverlay">
+        <div style="text-align:center;">
+            <div style="font-family:var(--mono);font-size:.68rem;color:var(--scan-muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:20px;">
+                Scanning in progress
+            </div>
+            <div class="progress-ring-wrap">
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                    <circle class="progress-ring-bg" cx="60" cy="60" r="54" />
+                    <circle class="progress-ring-bar" id="progressRingBar" cx="60" cy="60" r="54" />
+                </svg>
+                <div class="progress-ring-pct" id="progressPct">0%</div>
+            </div>
+            <div class="progress-status" id="progressStatus" style="margin-top:16px;">Initialising scanner…</div>
+            <div class="progress-pages" id="progressPages"></div>
+        </div>
+        <div class="scan-log" id="scanLog"></div>
+        <button class="btn-scan-outline" onclick="cancelScan()">
+            <i class="bi bi-x-circle"></i> Cancel Scan
+        </button>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+let _currentJobId = null;
+let _pollTimer    = null;
+
+// ── Toggle sync ─────────────────────────────────────────────────────────
+document.getElementById('chkDuplex').addEventListener('change', function() {
+    document.getElementById('selectedDuplex').value = this.checked ? 'true' : 'false';
+    this.nextElementSibling.style.background = this.checked ? 'var(--scan-accent)' : 'var(--scan-border)';
+    this.nextElementSibling.querySelector('.toggle-thumb').style.transform = this.checked ? 'translateX(18px)' : '';
+    updateSummary();
+});
+document.getElementById('chkADF').addEventListener('change', function() {
+    document.getElementById('selectedADF').value = this.checked ? 'true' : 'false';
+    this.nextElementSibling.style.background = this.checked ? 'var(--scan-accent)' : 'var(--scan-border)';
+    this.nextElementSibling.querySelector('.toggle-thumb').style.transform = this.checked ? 'translateX(18px)' : '';
+    updateSummary();
+});
+
+// ── Scanner tile selection ───────────────────────────────────────────────
+function selectScanner(el, name) {
+    document.querySelectorAll('.scanner-tile').forEach(t => t.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('selectedScanner').value = name;
+    document.getElementById('scannerDisplay').textContent = name;
+    document.getElementById('scannerDisplay').style.color = 'var(--scan-text)';
+    document.getElementById('startScanBtn').disabled = false;
+    document.getElementById('scanBtnHint').textContent = 'Ready to scan';
+}
+
+// ── Profile tile selection ───────────────────────────────────────────────
+function selectProfile(el, dpi, color, paper, duplex, adf) {
+    document.querySelectorAll('.profile-tile').forEach(t => t.classList.remove('selected'));
+    el.classList.add('selected');
+
+    document.getElementById('selectedDPI').value   = dpi;
+    document.getElementById('selectedColor').value = color;
+    document.getElementById('selectedPaper').value = paper;
+    document.getElementById('dpiSelect').value     = dpi;
+    document.getElementById('colorSelect').value   = color;
+    document.getElementById('paperSelect').value   = paper;
+
+    const chkD = document.getElementById('chkDuplex');
+    const chkA = document.getElementById('chkADF');
+    chkD.checked = duplex === true || duplex === 'true';
+    chkA.checked = adf   === true || adf   === 'true';
+    chkD.dispatchEvent(new Event('change'));
+    chkA.dispatchEvent(new Event('change'));
+    updateSummary();
+}
+
+function updateSummary() {
+    const chips = [
+        document.getElementById('dpiSelect').value + ' DPI',
+        document.getElementById('colorSelect').value,
+        document.getElementById('paperSelect').value,
+        document.getElementById('chkDuplex').checked ? 'Duplex' : null,
+        document.getElementById('chkADF').checked    ? 'ADF'    : null,
+    ].filter(Boolean);
+
+    document.getElementById('settingsSummary').innerHTML = chips
+        .map(c => `<span class="profile-tag" style="font-size:.7rem;">${c}</span>`)
+        .join('');
+}
+
+document.getElementById('dpiSelect').addEventListener('change', updateSummary);
+document.getElementById('colorSelect').addEventListener('change', updateSummary);
+document.getElementById('paperSelect').addEventListener('change', updateSummary);
+
+// ── Start scan ──────────────────────────────────────────────────────────
+function startScan() {
+    const scanner = document.getElementById('selectedScanner').value;
+    if (!scanner) { Swal.fire('Select Scanner', 'Please select a scanner first.', 'warning'); return; }
+
+    const settings = {
+        SelectedScanner: scanner,
+        DPI:       parseInt(document.getElementById('dpiSelect').value),
+        ColorMode: document.getElementById('colorSelect').value,
+        PaperSize: document.getElementById('paperSelect').value,
+        Duplex:    document.getElementById('chkDuplex').checked,
+        UseADF:    document.getElementById('chkADF').checked,
+        TargetLibrary: document.getElementById('librarySelect').value
+    };
+
+    document.getElementById('progressOverlay').classList.add('show');
+    addLog('Connecting to scanner: ' + scanner, 'ok');
+    addLog('Settings: ' + settings.DPI + 'dpi · ' + settings.ColorMode + ' · ' + settings.PaperSize, '');
+
+    $.ajax({
+        url: '/Scan/InitiateScan',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(settings),
+        success(res) {
+            if (!res.success) {
+                document.getElementById('progressOverlay').classList.remove('show');
+                Swal.fire('Error', res.message, 'error'); return;
+            }
+            _currentJobId = res.jobId;
+            addLog('Job started: ' + res.jobId, 'ok');
+            document.getElementById('progressStatus').textContent = 'Scanning…';
+            pollProgress();
+        },
+        error(xhr) {
+            document.getElementById('progressOverlay').classList.remove('show');
+            Swal.fire('Error', xhr.responseText || 'Failed to start scan', 'error');
+        }
+    });
+}
+
+function pollProgress() {
+    if (!_currentJobId) return;
+    $.get('/Scan/GetScanProgress', { jobId: _currentJobId }, function(res) {
+        if (!res.success) { addLog('Progress error: ' + res.message, 'err'); return; }
+
+        const pct = res.progress || 0;
+        const circumference = 2 * Math.PI * 54;
+        const offset = circumference - (pct / 100) * circumference;
+        document.getElementById('progressRingBar').style.strokeDashoffset = offset;
+        document.getElementById('progressPct').textContent = pct + '%';
+        document.getElementById('progressStatus').textContent = res.status || 'Scanning…';
+        if (res.pagesScanned)
+            document.getElementById('progressPages').textContent =
+                'Pages: ' + res.pagesScanned + (res.estimatedTotal ? ' / ~' + res.estimatedTotal : '');
+
+        if (res.status === 'Completed' || pct >= 100) {
+            addLog('Scan complete — processing…', 'ok');
+            document.getElementById('progressStatus').textContent = 'Processing document…';
+            setTimeout(() => submitProcessScan(), 800);
+        } else if (res.status === 'Failed' || res.error) {
+            addLog('Error: ' + (res.error || 'scan failed'), 'err');
+            document.getElementById('progressOverlay').classList.remove('show');
+            Swal.fire('Scan Failed', res.error || 'An error occurred.', 'error');
+        } else {
+            _pollTimer = setTimeout(pollProgress, 1200);
+        }
+    }).fail(() => {
+        addLog('Lost connection — retrying…', 'warn');
+        _pollTimer = setTimeout(pollProgress, 3000);
+    });
+}
+
+function submitProcessScan() {
+    const form = document.createElement('form');
+    form.method = 'POST'; form.action = '/Scan/ProcessScan';
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'jobId'; inp.value = _currentJobId;
+    form.appendChild(inp);
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function cancelScan() {
+    clearTimeout(_pollTimer);
+    if (_currentJobId) {
+        $.ajax({ url: '/Scan/CancelScan', type: 'POST', contentType: 'application/json',
+            data: JSON.stringify({ jobId: _currentJobId }) });
+    }
+    document.getElementById('progressOverlay').classList.remove('show');
+    addLog('Scan cancelled.', 'warn');
+}
+
+function addLog(msg, type) {
+    const div = document.createElement('div');
+    div.className = 'log-line ' + (type || '');
+    div.textContent = '> ' + msg;
+    const log = document.getElementById('scanLog');
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+}
+    </script>
+</body>
+</html>
