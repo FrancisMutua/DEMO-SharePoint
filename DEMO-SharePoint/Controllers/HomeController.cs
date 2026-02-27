@@ -136,6 +136,10 @@ namespace DEMO_SharePoint.Controllers
                 var items = GetFolderContents(libraryUrl);
                 ViewBag.Items = items;
 
+                // Approval status per item - read from ApprovalInstances, not document metadata
+                if (activeWorkflow != null)
+                    ViewBag.ApprovalStatuses = helper.GetApprovalStatusForLibrary(libraryUrl);
+
                 return View();
             }
             catch (Exception ex)

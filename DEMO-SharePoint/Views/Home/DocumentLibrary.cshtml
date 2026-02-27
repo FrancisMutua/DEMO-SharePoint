@@ -2,10 +2,13 @@
 @{
     ViewBag.Title = "Document Library";
     var items = ViewBag.Items as List<SPItem>;
-    var wfInternalCols = new HashSet<string> { "WF_Level", "WF_WorkflowName", "WF_SubmittedBy", "WF_RunId" };
+    var approvalStatuses = ViewBag.ApprovalStatuses as Dictionary<string, string>
+                           ?? new Dictionary<string, string>();
+    // Hide any WF_ columns that may already exist on the library from a previous run
+    var wfHiddenCols = new HashSet<string> { "WF_Status", "WF_Level", "WF_WorkflowName", "WF_SubmittedBy", "WF_RunId" };
     var allColumns = items != null && items.Any()
         ? items.SelectMany(i => i.Metadata.Keys).Distinct()
-               .Where(c => !wfInternalCols.Contains(c)).ToList()
+               .Where(c => !wfHiddenCols.Contains(c)).ToList()
         : new List<string>();
 }
 
@@ -267,12 +270,16 @@
                             <th style="min-width:80px;">Type</th>
                             @foreach (var col in allColumns)
                             {
-                                <th style="min-width:130px;">@(col == "WF_Status" ? "Approval Status" : col)</th>
+                                <th style="min-width:130px;">@col</th>
+                            }
+                            @if (ViewBag.HasWorkflow == true)
+                            {
+                                <th style="min-width:140px;">Approval Status</th>
                             }
                             <th style="width:60px;">Actions</th>
                         </tr>
                         <tr>
-                            <th><input type="text" placeholder="Filter name…" /></th>
+                            <th><input type="text" placeholder="Filter name..." /></th>
                             <th>
                                 <select>
                                     <option value="">All</option>
@@ -282,7 +289,11 @@
                             </th>
                             @foreach (var col in allColumns)
                             {
-                                <th><input type="text" placeholder="Filter…" /></th>
+                                <th><input type="text" placeholder="Filter..." /></th>
+                            }
+                            @if (ViewBag.HasWorkflow == true)
+                            {
+                                <th><input type="text" placeholder="Filter..." /></th>
                             }
                             <th></th>
                         </tr>
@@ -363,22 +374,30 @@
                                 @foreach (var col in allColumns)
                                 {
                                     var cellVal = item.Metadata.ContainsKey(col) ? item.Metadata[col] : "";
-                                    if (col == "WF_Status" && !string.IsNullOrEmpty(cellVal))
+                                    <td style="color:var(--dl-text-secondary);font-size:.8rem;">@cellVal</td>
+                                }
+
+                                <!-- Approval Status (from ApprovalInstances, not document metadata) -->
+                                @if (ViewBag.HasWorkflow == true)
+                                {
+                                    var wfStatus = approvalStatuses.ContainsKey(item.Url)
+                                                   ? approvalStatuses[item.Url] : "";
+                                    if (!string.IsNullOrEmpty(wfStatus))
                                     {
-                                        var badgeColor = cellVal == "Approved" ? "#198754" :
-                                                         cellVal == "Rejected" ? "#dc3545" :
-                                                         cellVal == "Recalled" ? "#6c757d" :
-                                                         cellVal.StartsWith("In Progress") ? "#E84F26" :
-                                                         cellVal == "Pending" ? "#FEB900" : "#0d6efd";
+                                        var badgeColor = wfStatus == "Approved"             ? "#198754" :
+                                                         wfStatus == "Rejected"             ? "#dc3545" :
+                                                         wfStatus == "Recalled"             ? "#6c757d" :
+                                                         wfStatus.StartsWith("In Progress") ? "#E84F26" :
+                                                         wfStatus == "Pending"              ? "#FEB900" : "#0d6efd";
                                         <td>
                                             <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:.73rem;font-weight:600;color:#fff;background:@badgeColor;white-space:nowrap;">
-                                                @cellVal
+                                                @wfStatus
                                             </span>
                                         </td>
                                     }
                                     else
                                     {
-                                        <td style="color:var(--dl-text-secondary);font-size:.8rem;">@cellVal</td>
+                                        <td></td>
                                     }
                                 }
 

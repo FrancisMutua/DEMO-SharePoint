@@ -323,55 +323,82 @@ namespace DEMO_SharePoint.Models
         }
 
         /// <summary>
-        /// Ensures WF_Status, WF_Level, WF_WorkflowName, WF_SubmittedBy, WF_RunId columns
-        /// exist on the given document library, then writes the approval status to the item.
+        /// Returns a dictionary of itemUrl -> human-readable approval status
+        /// for all items in the given library, derived from the ApprovalInstances list.
+        /// Documents are never modified; status is read-only from ApprovalInstances.
         /// </summary>
-        private void WriteApprovalStatusToItem(string itemUrl, string status,
-            string workflowName, string level, string submittedBy, string runId)
+        public Dictionary<string, string> GetApprovalStatusForLibrary(string libraryUrl)
         {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             try
             {
                 using (var ctx = GetContext())
                 {
-                    var file = ctx.Web.GetFileByServerRelativeUrl(Uri.EscapeUriString(itemUrl));
-                    ctx.Load(file, f => f.ListItemAllFields,
-                                   f => f.ListItemAllFields.ParentList,
-                                   f => f.ListItemAllFields.ParentList.Fields);
+                    var list = ctx.Web.Lists.GetByTitle("ApprovalInstances");
+                    var caml = new CamlQuery
+                    {
+                        ViewXml = $@"<View><Query><Where>
+                            <BeginsWith>
+                                <FieldRef Name='ItemUrl'/>
+                                <Value Type='Text'>{libraryUrl.Replace("'", "''")}</Value>
+                            </BeginsWith>
+                        </Where></Query><RowLimit>5000</RowLimit></View>"
+                    };
+                    var spItems = list.GetItems(caml);
+                    ctx.Load(spItems);
                     ctx.ExecuteQuery();
 
-                    var list   = file.ListItemAllFields.ParentList;
-                    var fields = list.Fields;
-
-                    void EnsureColumn(string name, string type, string displayName)
+                    var rows = new List<(string itemUrl, string runId, int stage,
+                                         int total, string status, DateTime submitted)>();
+                    foreach (ListItem li in spItems)
                     {
-                        if (!fields.Any(f => f.InternalName == name))
-                        {
-                            list.Fields.AddFieldAsXml(
-                                $"<Field Type='{type}' Name='{name}' StaticName='{name}' DisplayName='{displayName}'/>",
-                                true, AddFieldOptions.DefaultValue);
-                            ctx.ExecuteQuery();
-                            ctx.Load(list.Fields);
-                            ctx.ExecuteQuery();
-                        }
+                        rows.Add((
+                            itemUrl:   li["ItemUrl"]?.ToString() ?? "",
+                            runId:     li["WorkflowRunId"]?.ToString() ?? "",
+                            stage:     SafeInt(li["Stage"]),
+                            total:     SafeInt(li["TotalLevels"]),
+                            status:    li["Status"]?.ToString() ?? "",
+                            submitted: li["SubmittedDate"] is DateTime dt ? dt : DateTime.MinValue
+                        ));
                     }
 
-                    EnsureColumn("WF_Status",       "Text", "Approval Status");
-                    EnsureColumn("WF_Level",         "Text", "Approval Level");
-                    EnsureColumn("WF_WorkflowName",  "Text", "Workflow Name");
-                    EnsureColumn("WF_SubmittedBy",   "Text", "Submitted By");
-                    EnsureColumn("WF_RunId",         "Text", "Workflow Run ID");
+                    var byItem = rows
+                        .Where(r => !string.IsNullOrEmpty(r.itemUrl))
+                        .GroupBy(r => r.itemUrl, StringComparer.OrdinalIgnoreCase);
 
-                    var li = file.ListItemAllFields;
-                    li["WF_Status"]      = status;
-                    li["WF_Level"]       = level ?? "";
-                    li["WF_WorkflowName"]= workflowName ?? "";
-                    li["WF_SubmittedBy"] = submittedBy ?? "";
-                    li["WF_RunId"]       = runId ?? "";
-                    li.Update();
-                    ctx.ExecuteQuery();
+                    foreach (var itemGroup in byItem)
+                    {
+                        var byRun = itemGroup.GroupBy(r => r.runId).ToList();
+                        // Prefer the active (Pending/Waiting) run; fall back to most recent
+                        var chosen = byRun.FirstOrDefault(g =>
+                                         g.Any(r => r.status == "Pending" || r.status == "Waiting"))
+                                  ?? byRun.OrderByDescending(g => g.Max(r => r.submitted))
+                                          .FirstOrDefault();
+                        if (chosen == null) continue;
+                        result[itemGroup.Key] = DeriveRunStatus(chosen.ToList());
+                    }
                 }
             }
-            catch { /* Best-effort - do not break the main workflow operation */ }
+            catch { }
+            return result;
+        }
+
+        private string DeriveRunStatus(
+            List<(string itemUrl, string runId, int stage, int total, string status, DateTime submitted)> rows)
+        {
+            if (rows.Any(r => r.status == "Rejected")) return "Rejected";
+            if (rows.All(r => r.status == "Cancelled")) return "Recalled";
+            if (rows.All(r => r.status == "Approved" || r.status == "Superseded" || r.status == "Cancelled"))
+                return "Approved";
+
+            var pending = rows.Where(r => r.status == "Pending").ToList();
+            if (pending.Any())
+            {
+                int cur = pending.Max(r => r.stage);
+                int tot = pending.First().total;
+                return cur == 1 && tot == 1 ? "Pending" : $"In Progress - Level {cur} of {tot}";
+            }
+            return "Pending";
         }
 
         /// <summary>
@@ -432,9 +459,6 @@ namespace DEMO_SharePoint.Models
 
             LogAuditEntry(runId, itemUrl, itemName, workflow.WorkflowName,
                           submittedBy, "Submitted", 1, $"Submitted via {trigger}");
-
-            WriteApprovalStatusToItem(itemUrl, "Pending",
-                workflow.WorkflowName, "1", submittedBy, runId);
 
             if (workflow.NotifyOnSubmit)
             {
@@ -507,10 +531,6 @@ namespace DEMO_SharePoint.Models
                                       "StageAdvanced", stage + 1,
                                       $"Advanced from Level {stage} to Level {stage + 1}");
 
-                        WriteApprovalStatusToItem(itemUrl,
-                            $"In Progress – Level {stage + 1} of {totalLevels}",
-                            wfName, $"{stage + 1}", submitter, runId);
-
                         if (wf?.NotifyOnApprove == true)
                         {
                             _notify.NotifyApproved(ResolveEmail(submitter), itemName,
@@ -529,9 +549,6 @@ namespace DEMO_SharePoint.Models
                     {
                         LogAuditEntry(runId, itemUrl, itemName, wfName, "System",
                                       "Completed", stage, "All approval levels satisfied.");
-
-                        WriteApprovalStatusToItem(itemUrl, "Approved",
-                            wfName, $"{totalLevels}", submitter, runId);
 
                         if (wf?.NotifyOnComplete == true)
                         {
@@ -633,9 +650,6 @@ namespace DEMO_SharePoint.Models
                         break;
                 }
 
-                WriteApprovalStatusToItem(itemUrl, "Rejected",
-                    wfName, $"{stage}", submitter, runId);
-
                 if (wf?.NotifyOnReject == true)
                     _notify.NotifyRejected(ResolveEmail(submitter), itemName,
                                            approverUsername, stage, comments);
@@ -723,9 +737,6 @@ namespace DEMO_SharePoint.Models
 
             LogAuditEntry(workflowRunId, itemUrl, itemName, wfName, requestedBy,
                           "Recalled", 0, "Recalled by submitter.");
-
-            WriteApprovalStatusToItem(itemUrl, "Recalled",
-                wfName, "0", requestedBy, workflowRunId);
 
             foreach (var ap in pendingApprovers)
                 _notify.NotifyRecalled(ResolveEmail(ap), itemName, requestedBy);
