@@ -403,8 +403,8 @@
                                                         <i class="bi bi-tags"></i> Properties
                                                     </a>
                                                 </li>
-                                               // if (ViewBag.HasWorkflow == true)
-                                               // {
+                                                @if (ViewBag.HasWorkflow == true)
+                                                {
                                                     <li>
                                                         <a class="dropdown-item" href="javascript:void(0)"
                                                            onclick="submitForApproval('@item.Url','@item.Name')">
@@ -416,7 +416,7 @@
                                                             <i class="bi bi-journal-text"></i> Approval History
                                                         </a>
                                                     </li>
-                                                //}
+                                                }
                                                 <li>
                                                     <a class="dropdown-item warning" href="javascript:void(0)"
                                                        onclick="renameItem('@item.Url', false, '@item.Name')">
