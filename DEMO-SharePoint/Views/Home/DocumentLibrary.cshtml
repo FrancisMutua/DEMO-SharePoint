@@ -2,8 +2,10 @@
 @{
     ViewBag.Title = "Document Library";
     var items = ViewBag.Items as List<SPItem>;
+    var wfInternalCols = new HashSet<string> { "WF_Level", "WF_WorkflowName", "WF_SubmittedBy", "WF_RunId" };
     var allColumns = items != null && items.Any()
-        ? items.SelectMany(i => i.Metadata.Keys).Distinct().ToList()
+        ? items.SelectMany(i => i.Metadata.Keys).Distinct()
+               .Where(c => !wfInternalCols.Contains(c)).ToList()
         : new List<string>();
 }
 
@@ -17,7 +19,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
-    /* ── Viewer-specific styles ──────────────────────────────────────────── */
+    /*  Viewer-specific styles */
     #pdfViewerContainer {
         background: #525659;
         padding: 16px;
@@ -212,7 +214,7 @@
 
 <div class="dl-wrapper">
 
-    <!-- ═══ HEADER ═══ -->
+    <!--  HEADER  -->
     <div class="dl-header">
         <div class="dl-title">
             <div class="dl-title-icon"><i class="bi bi-folder2-open"></i></div>
@@ -228,7 +230,7 @@
         </div>
     </div>
 
-    <!-- ═══ BREADCRUMB ═══ -->
+    <!--  BREADCRUMB  -->
     <nav class="dl-breadcrumb">
         <i class="bi bi-house-door"></i>
         <a href="@Url.Action("Index","Home")">Home</a>
@@ -236,7 +238,7 @@
         <span id="breadcrumbTrail">Documents</span>
     </nav>
 
-    <!-- ═══ TABLE CARD ═══ -->
+    <!--  TABLE CARD  -->
     <div class="dl-card">
         <div class="dl-card-toolbar">
             <div class="dl-stat-pills">
@@ -265,7 +267,7 @@
                             <th style="min-width:80px;">Type</th>
                             @foreach (var col in allColumns)
                             {
-                                <th style="min-width:130px;">@col</th>
+                                <th style="min-width:130px;">@(col == "WF_Status" ? "Approval Status" : col)</th>
                             }
                             <th style="width:60px;">Actions</th>
                         </tr>
@@ -360,9 +362,24 @@
                                 <!-- Dynamic metadata columns -->
                                 @foreach (var col in allColumns)
                                 {
-                                    <td style="color:var(--dl-text-secondary);font-size:.8rem;">
-                                        @(item.Metadata.ContainsKey(col) ? item.Metadata[col] : "")
-                                    </td>
+                                    var cellVal = item.Metadata.ContainsKey(col) ? item.Metadata[col] : "";
+                                    if (col == "WF_Status" && !string.IsNullOrEmpty(cellVal))
+                                    {
+                                        var badgeColor = cellVal == "Approved" ? "#198754" :
+                                                         cellVal == "Rejected" ? "#dc3545" :
+                                                         cellVal == "Recalled" ? "#6c757d" :
+                                                         cellVal.StartsWith("In Progress") ? "#E84F26" :
+                                                         cellVal == "Pending" ? "#FEB900" : "#0d6efd";
+                                        <td>
+                                            <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:.73rem;font-weight:600;color:#fff;background:@badgeColor;white-space:nowrap;">
+                                                @cellVal
+                                            </span>
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        <td style="color:var(--dl-text-secondary);font-size:.8rem;">@cellVal</td>
+                                    }
                                 }
 
                                 <!-- Actions -->
@@ -386,12 +403,20 @@
                                                         <i class="bi bi-tags"></i> Properties
                                                     </a>
                                                 </li>
-                                                <li>
-                                                    <a class="dropdown-item" href="javascript:void(0)"
-                                                       onclick="submitForApproval('@item.Url','@item.Name',@ViewBag.CurrentWorkflowId)">
-                                                        <i class="bi bi-send"></i> Send for Approval
-                                                    </a>
-                                                </li>
+                                               // if (ViewBag.HasWorkflow == true)
+                                               // {
+                                                    <li>
+                                                        <a class="dropdown-item" href="javascript:void(0)"
+                                                           onclick="submitForApproval('@item.Url','@item.Name')">
+                                                            <i class="bi bi-send"></i> Send for Approval
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="dropdown-item" href="@Url.Action("AuditLog","Workflow")?itemUrl=@Uri.EscapeDataString(item.Url)">
+                                                            <i class="bi bi-journal-text"></i> Approval History
+                                                        </a>
+                                                    </li>
+                                                //}
                                                 <li>
                                                     <a class="dropdown-item warning" href="javascript:void(0)"
                                                        onclick="renameItem('@item.Url', false, '@item.Name')">
@@ -467,9 +492,9 @@
 </div>
 
 
-<!-- ══════════════════════════════════════════════
+<!-- ---
      MODAL: FILE VIEWER
-══════════════════════════════════════════════ -->
+--- -->
 <div class="modal fade" id="fileViewerModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
@@ -499,9 +524,9 @@
 </div>
 
 
-<!-- ══════════════════════════════════════════════
+<!-- ---
      MODAL: UPLOAD
-══════════════════════════════════════════════ -->
+--- -->
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -560,9 +585,9 @@
 </div>
 
 
-<!-- ══════════════════════════════════════════════
+<!-- ---
      MODAL: CREATE FOLDER
-══════════════════════════════════════════════ -->
+--- -->
 <div class="modal fade" id="createFolderModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered" style="max-width:400px;">
         <div class="modal-content">
@@ -587,9 +612,9 @@
 </div>
 
 
-<!-- ══════════════════════════════════════════════
+<!-- ---
      MODAL: PROPERTIES / METADATA
-══════════════════════════════════════════════ -->
+--- -->
 <div class="modal fade" id="metadataModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered" style="max-width:480px;">
         <div class="modal-content">
@@ -619,9 +644,9 @@
 </div>
 
 
-<!-- ══════════════════════════════════════════════
+<!-- ---
      MODAL: SHARE
-══════════════════════════════════════════════ -->
+--- -->
 <div class="modal fade" id="shareModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered" style="max-width:440px;">
         <div class="modal-content">
@@ -664,9 +689,9 @@
 </div>
 
 
-<!-- ══════════════════════════════════════════════
+<!-- ---
      MODAL: VERSIONS
-══════════════════════════════════════════════ -->
+--- -->
 <div class="modal fade" id="versionsModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width:500px;">
         <div class="modal-content">
@@ -684,13 +709,13 @@
 </div>
 
 
-<!-- ══════════════════════════════════════════════
+<!-- ---
      JAVASCRIPT
-══════════════════════════════════════════════ -->
+--- -->
 <script>
 const _libraryUrl = '@ViewBag.LibraryUrl';
 
-// ── BREADCRUMB ──────────────────────────────────────────────────────────
+// BREADCRUMB
 (function () {
     const parts = (_libraryUrl || '').split('/').filter(Boolean);
     const trail = document.getElementById('breadcrumbTrail');
@@ -708,9 +733,9 @@ const _libraryUrl = '@ViewBag.LibraryUrl';
 })();
 
 
-// ══════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  DOCUMENT VIEWER
-// ══════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 // Extension groupings
 const EXT = {
@@ -809,7 +834,7 @@ function dispatchViewer(group, ext, blobUrl, blob, container, originalUrl, fileN
     }
 }
 
-// ── PDF ─────────────────────────────────────────────────────────────────
+// PDF
 function renderPDF(blobUrl, container) {
     container.innerHTML = `<div id="pdfViewerContainer"></div>`;
     const pdfC = document.getElementById('pdfViewerContainer');
@@ -826,7 +851,7 @@ function renderPDF(blobUrl, container) {
     }).catch(e => { pdfC.innerHTML = `<div class="viewer-error">PDF error: ${escapeHtml(e.message)}</div>`; });
 }
 
-// ── Word (.docx / .doc) ─────────────────────────────────────────────────
+// Word (.docx / .doc)
 function renderWord(blob, container) {
     const r = new FileReader();
     r.onload = e => mammoth.convertToHtml({ arrayBuffer: e.target.result })
@@ -835,7 +860,7 @@ function renderWord(blob, container) {
     r.readAsArrayBuffer(blob);
 }
 
-// ── Excel ───────────────────────────────────────────────────────────────
+// Excel
 function renderExcel(blob, container) {
     const r = new FileReader();
     r.onload = e => {
@@ -867,7 +892,7 @@ function switchSheet(btn, sheetId) {
     document.getElementById(sheetId).style.display = '';
 }
 
-// ── CSV / TSV ────────────────────────────────────────────────────────────
+// CSV / TSV
 function renderCSV(blob, container, isTsv) {
     const r = new FileReader();
     r.onload = e => {
@@ -900,7 +925,7 @@ function renderCSV(blob, container, isTsv) {
     r.readAsText(blob);
 }
 
-// ── Image ────────────────────────────────────────────────────────────────
+// Image
 function renderImage(blobUrl, container, fileName) {
     container.innerHTML = `
         <div style="text-align:center;padding:20px;background:#1a1a2e;min-height:300px;display:flex;align-items:center;justify-content:center;">
@@ -910,7 +935,7 @@ function renderImage(blobUrl, container, fileName) {
         </div>`;
 }
 
-// ── Plain text / code ────────────────────────────────────────────────────
+// Plain text / code
 function renderText(blob, container, ext) {
     const r = new FileReader();
     r.onload = e => {
@@ -921,7 +946,7 @@ function renderText(blob, container, ext) {
     r.readAsText(blob);
 }
 
-// ── Video ────────────────────────────────────────────────────────────────
+// Video
 function renderVideo(blobUrl, container, ext) {
     const mime = { '.mp4':'video/mp4', '.webm':'video/webm', '.ogv':'video/ogg', '.mov':'video/mp4' }[ext] || 'video/mp4';
     container.innerHTML = `
@@ -933,7 +958,7 @@ function renderVideo(blobUrl, container, ext) {
         </div>`;
 }
 
-// ── Audio ────────────────────────────────────────────────────────────────
+// Audio
 function renderAudio(blobUrl, container, ext) {
     const mime = { '.mp3':'audio/mpeg', '.wav':'audio/wav', '.ogg':'audio/ogg',
         '.flac':'audio/flac', '.aac':'audio/aac', '.m4a':'audio/mp4', '.opus':'audio/ogg' }[ext] || 'audio/mpeg';
@@ -947,7 +972,7 @@ function renderAudio(blobUrl, container, ext) {
         </div>`;
 }
 
-// ── PowerPoint (.pptx / .ppt) — Office Online viewer ─────────────────────
+// PowerPoint (.pptx / .ppt) - Office Online viewer
 // Strategy: try Office Online embed using the SharePoint server-relative URL.
 // If the server URL isn't accessible publicly, fall back to a slide-by-slide
 // SheetJS parse of .pptx (text only) or a clean download card.
@@ -996,7 +1021,7 @@ function pptIframeFallback(blobUrl, fileName, ext) {
             <div class="uns-icon"><i class="bi bi-file-earmark-slides"></i></div>
             <h6>Office Online unavailable</h6>
             <p style="font-size:.82rem;max-width:380px;">
-                The Office Online viewer could not load — this usually means the file is on an internal
+                The Office Online viewer could not load - this usually means the file is on an internal
                 network not accessible from the internet. Download the file to view it locally.
             </p>
             <a href="${blobUrl}" download="${escapeHtml(fileName)}" class="viewer-download-btn">
@@ -1005,7 +1030,7 @@ function pptIframeFallback(blobUrl, fileName, ext) {
         </div>`;
 }
 
-// ── Download-only fallback (archives, unknown) ────────────────────────────
+// Download-only fallback (archives, unknown)
 function renderDownloadOnly(container, fileName, ext, blobUrl) {
     const hints = {
         '.pptx':'PowerPoint presentations cannot be rendered in the browser. Download to view in PowerPoint or upload to Office 365.',
@@ -1029,9 +1054,9 @@ function renderDownloadOnly(container, fileName, ext, blobUrl) {
 function escapeHtml(t) { const d = document.createElement('div'); d.textContent = String(t||''); return d.innerHTML; }
 
 
-// ══════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  FILE UPLOAD
-// ══════════════════════════════════════════════
+// -------------------------------------------------------------------
 let selectedFiles = [];
 const dropZone  = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
@@ -1147,10 +1172,10 @@ function displayUploadResults(response) {
 }
 
 
-// ══════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  METADATA / PROPERTIES
 //  GetLibraryFields now returns { success, fields }
-// ══════════════════════════════════════════════
+// -------------------------------------------------------------------
 let _metaItemUrl = null, _metaIsFolder = false;
 
 function editMetadata(itemUrl, isFolder, itemName) {
@@ -1217,12 +1242,12 @@ function renderMetadataForm(fields) {
 
         if (f.fieldType === 'Choice' && f.choices?.length) {
             html += `<select class="form-select" name="${escapeHtml(f.internalName)}" ${f.required ? 'required' : ''}>
-                <option value="">— Select —</option>
+                <option value="">- Select -</option>
                 ${f.choices.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
             </select>`;
         } else if (f.fieldType === 'Boolean') {
             html += `<select class="form-select" name="${escapeHtml(f.internalName)}">
-                <option value="">— Select —</option>
+                <option value="">- Select -</option>
                 <option value="Yes">Yes</option><option value="No">No</option>
             </select>`;
         } else if (f.fieldType === 'DateTime') {
@@ -1275,9 +1300,9 @@ function saveMetadata() {
 }
 
 
-// ══════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  FOLDER & ITEM MANAGEMENT
-// ══════════════════════════════════════════════
+// -------------------------------------------------------------------
 function createFolder() {
     const name = $('#folderName').val().trim();
     if (!name) { Swal.fire('Error','Enter a folder name','error'); return; }
@@ -1319,16 +1344,38 @@ function renameItem(itemUrl, isFolder, currentName) {
     });
 }
 
-function submitForApproval(itemUrl, itemName, workflowId) {
-    Swal.fire({ title:'Send for Approval?', icon:'question', showCancelButton:true, confirmButtonText:'Send' })
-        .then(r => {
-            if (!r.isConfirmed) return;
-            $.post('/Workflow/SubmitForApproval', { itemUrl, itemName, workflowId }, res => {
-                if (res.success) {
-                    Swal.fire({ icon:'success', title:'Submitted', timer:1200, showConfirmButton:false }).then(() => location.reload());
-                } else { Swal.fire('Error', res.message, 'error'); }
-            });
+function submitForApproval(itemUrl, itemName) {
+    Swal.fire({
+        title: 'Send for Approval?',
+        html: `<div style="font-size:.9rem;color:#555;">Document: <strong>${itemName}</strong><br>will be submitted to the configured approvers.</div>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Send',
+        confirmButtonColor: '#E84F26'
+    }).then(r => {
+        if (!r.isConfirmed) return;
+        $.post('/Home/SubmitForApproval', { itemUrl, itemName }, res => {
+            if (res.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Submitted!',
+                    text: 'The document has been sent for approval.',
+                    timer: 1800,
+                    showConfirmButton: false
+                }).then(() => location.reload());
+            } else {
+                const isDuplicate = res.message && res.message.indexOf('already has an active') !== -1;
+                Swal.fire({
+                    icon: isDuplicate ? 'warning' : 'error',
+                    title: isDuplicate ? 'Already In Review' : 'Error',
+                    text: res.message,
+                    confirmButtonColor: '#E84F26'
+                });
+            }
+        }).fail(() => {
+            Swal.fire('Error', 'Could not connect to the server. Please try again.', 'error');
         });
+    });
 }
 
 function showVersions(fileUrl) {
@@ -1415,9 +1462,9 @@ $(document).on('click', e => {
 });
 
 
-// ══════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  DATATABLE INIT
-// ══════════════════════════════════════════════
+// -------------------------------------------------------------------
 $(document).ready(function () {
     const table = $('#documentsTable').DataTable({
         paging: true, searching: true, ordering: true, info: true,
@@ -1425,7 +1472,7 @@ $(document).ready(function () {
         language: {
             search: '', searchPlaceholder: 'Search…',
             lengthMenu: 'Show _MENU_ per page',
-            info: '_START_–_END_ of _TOTAL_ items',
+            info: '_START_-_END_ of _TOTAL_ items',
             paginate: { previous: '‹', next: '›' }
         },
         columnDefs: [{ orderable: false, targets: -1 }]

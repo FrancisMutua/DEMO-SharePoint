@@ -1,241 +1,317 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Web.Mvc;
+using Demo_SharePoint.Services.Implementations;
 using DEMO_SharePoint.Models;
-using static DEMO_SharePoint.Models.Helper;
-using WorkflowInstance = DEMO_SharePoint.Models.WorkflowInstance;
 
-[SessionAuthorize]
-public class WorkflowController : Controller
+namespace DEMO_SharePoint.Controllers
 {
-    private Helper helper;
-
-    public WorkflowController()
+    [SessionAuthorize]
+    public class WorkflowController : BaseController
     {
-        helper = new Helper();
-    }
+        private readonly Helper helper;
 
-    public ActionResult Index()
-    {
-        var libraries = helper.GetDocumentLibraries();
-        ViewBag.Libraries = libraries;
-        var workflows = helper.GetWorkflows();
-
-        var vm = new WorkflowConfigVM
+        public WorkflowController()
         {
-            Libraries = helper.GetDocumentLibraries(),
-            ExistingWorkflows = workflows,
-            ApprovalLevels = Enumerable.Range(1, 10)
-                .Select(x => new SelectListItem
+            helper = new Helper();
+        }
+
+        private string CurrentUser =>
+            HttpContext.Session["Username"]?.ToString() ?? "UnknownUser";
+
+        private bool IsAdmin =>
+            CurrentUser.Equals("Administrator", StringComparison.OrdinalIgnoreCase);
+
+        // -------------------------------------------------------------------
+        //  WORKFLOW MANAGEMENT  (admin)
+        // -------------------------------------------------------------------
+
+        public ActionResult Index()
+        {
+            try
+            {
+                var workflows = helper.GetWorkflows();
+                var vm = new WorkflowConfigVM
                 {
-                    Text = x + " Levels",
-                    Value = x.ToString()
-                })
-                .ToList()
-        };
-
-        return View(vm);
-    }
-
-
-
-    [HttpPost]
-    [ValidateInput(false)]
-    public JsonResult CreateWorkflow(CreateWorkflowRequest model)
-    {
-        try
-        {
-            var user = HttpContext.Session["Username"]?.ToString() ?? "UnknownUser";
-            if (user.Equals("Administrator", StringComparison.OrdinalIgnoreCase))
-            {
-                return Json(new { success = false, message = "You do not have permissions" });
+                    Libraries         = helper.GetDocumentLibraries(),
+                    ExistingWorkflows = workflows,
+                    ApprovalLevels    = Enumerable.Range(1, 10)
+                        .Select(x => new SelectListItem
+                        {
+                            Text  = $"{x} Level{(x > 1 ? "s" : "")}",
+                            Value = x.ToString()
+                        }).ToList()
+                };
+                return View(vm);
             }
-            if (model == null || string.IsNullOrEmpty(model.Name) ||
-                model.Stages == null || model.Stages.Count != model.Levels)
+            catch (Exception ex)
             {
-                return Json(new { success = false, message = "Invalid workflow data." });
+                ViewBag.ErrorTitle = "Workflow Configuration Unavailable";
+                ViewBag.ErrorMessage = "Workflow settings could not be loaded. Please check your SharePoint connection and try again.";
+                ViewBag.ErrorDetail = ex.Message;
+                //return View("Error");
+                return View(new WorkflowConfigVM());
             }
-
-            helper.CreateWorkflow(model);
-
-            return Json(new { success = true });
         }
-        catch (Exception ex)
+
+        [HttpPost]
+        [ValidateInput(false)]
+        public JsonResult CreateWorkflow(CreateWorkflowRequest model)
         {
-            return Json(new { success = false, message = ex.Message });
+            if (!IsAdmin)
+                return Json(new { success = false, message = "Only Administrators can manage workflows." });
+            try
+            {
+                if (model == null || string.IsNullOrEmpty(model.Name) ||
+                    string.IsNullOrEmpty(model.LibraryUrl) ||
+                    model.Stages == null || model.Stages.Count != model.Levels)
+                    return Json(new { success = false, message = "Invalid workflow data. Ensure all levels are configured." });
+
+                helper.CreateWorkflow(model);
+                return Json(new { success = true });
+            }
+            catch (Exception ex) { return Json(new { success = false, message = ex.Message }); }
         }
-    }
 
-
-    [HttpPost]
-
-    [ValidateInput(false)]
-    public JsonResult DeleteWorkflow(int id)
-    {
-        var user = HttpContext.Session["Username"]?.ToString() ?? "UnknownUser";
-        if (user.Equals("Administrator", StringComparison.OrdinalIgnoreCase))
+        [HttpPost]
+        public JsonResult DeleteWorkflow(int id)
         {
-            return Json(new { success = false, message = "You dont have permissions" });
+            if (!IsAdmin)
+                return Json(new { success = false, message = "Only Administrators can delete workflows." });
+            try { helper.DeleteWorkflow(id); return Json(new { success = true }); }
+            catch (Exception ex) { return Json(new { success = false, message = ex.Message }); }
         }
-        try
+
+        [HttpPost]
+        public JsonResult ToggleWorkflow(int id, bool isActive)
         {
-            helper.DeleteWorkflow(id); // create this method
-            return Json(new { success = true });
+            if (!IsAdmin)
+                return Json(new { success = false, message = "Only Administrators can toggle workflows." });
+            try { helper.ToggleWorkflow(id, isActive); return Json(new { success = true }); }
+            catch (Exception ex) { return Json(new { success = false, message = ex.Message }); }
         }
-        catch (Exception ex)
+
+        // -------------------------------------------------------------------
+        //  SUBMIT FOR APPROVAL
+        // -------------------------------------------------------------------
+
+        [HttpPost]
+        public JsonResult SubmitForApproval(string itemUrl, string itemName)
         {
-            return Json(new { success = false, message = ex.Message });
-        }
-    }
+            try
+            {
+                if (string.IsNullOrWhiteSpace(itemUrl))
+                    return Json(new { success = false, message = "Item URL is required." });
 
-    [HttpPost]
-    public JsonResult SubmitForApproval(string itemUrl, string itemName)
-    {
-        try
+                string runId = helper.CreateWorkflowRun(
+                    itemUrl, itemName ?? "Untitled", CurrentUser, "Manual");
+                return Json(new { success = true, workflowRunId = runId });
+            }
+            catch (Exception ex) { return Json(new { success = false, message = ex.Message }); }
+        }
+
+        // -------------------------------------------------------------------
+        //  APPROVER DASHBOARD - My Approvals
+        // -------------------------------------------------------------------
+
+        public ActionResult MyApprovals()
         {
-            var librayUrl = helper.GetLibraryUrlFromItem(itemUrl);
-            var workflow = helper.GetWorkflowForLibrary(librayUrl);
-
-            if (workflow == null)
-                return Json(new { success = false, message = "No workflow configured." });
-
-            string username = HttpContext.Session["Username"]?.ToString() ?? "UnknownUser";
-
-            helper.CreateWorkflowInstance(itemUrl, itemName, username);
-
-            return Json(new { success = true });
+            try
+            {
+                var items = helper.GetPendingApprovalsForUser(CurrentUser);
+                return View(items);
+            }
+            catch (Exception ex)
+            {
+                ViewBag.ErrorTitle = "Approvals Unavailable";
+                ViewBag.ErrorMessage = "Your pending approvals could not be loaded. Please check your SharePoint connection and try again.";
+                ViewBag.ErrorDetail = ex.Message;
+                return View("Error");
+            }
         }
-        catch (Exception ex)
-        {
-            return Json(new { success = false, message = ex.Message });
-        }
-    }
+
+        // -------------------------------------------------------------------
+        //  SUBMITTER DASHBOARD - Submitted Approvals
+        // -------------------------------------------------------------------
 
         public ActionResult SubmittedApprovals()
-    {
-        var user = HttpContext.Session["Username"]?.ToString() ?? "UnknownUser";
-        var pending = new List<WorkflowInstance>();
-
-        // Get all workflow instances with Status = "Pending"
-        var allPendingInstances = helper.GetWorkflowInstances()
-                                        //.Where(i => i.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase))
-                                        .ToList();
-
-        foreach (var instance in allPendingInstances)
         {
-            // Check if the logged-in user is an approver for this stage
-            if (instance.Approver != null && instance.SubmittedBy.Equals(user, StringComparison.OrdinalIgnoreCase))
+            try
             {
-                pending.Add(instance);
+                var all = helper.GetSubmittedByUser(CurrentUser);
+
+                // Collapse to one representative row per workflow run
+                var grouped = all
+                    .GroupBy(i => i.WorkflowRunId)
+                    .Select(g =>
+                    {
+                        var rep = g.OrderBy(i => int.TryParse(i.CurrentLevel, out int l) ? l : 0)
+                                   .FirstOrDefault(i => i.Status == "Pending")
+                               ?? g.OrderByDescending(i => i.SubmittedDate).First();
+                        rep.TotalLevels = g.Max(i => i.TotalLevels);
+                        return rep;
+                    })
+                    .OrderByDescending(i => i.SubmittedDate)
+                    .ToList();
+
+                return View(grouped);
+            }
+            catch (Exception ex)
+            {
+                ViewBag.ErrorTitle = "Submitted Approvals Unavailable";
+                ViewBag.ErrorMessage = "Your submitted documents could not be loaded. Please check your SharePoint connection and try again.";
+                ViewBag.ErrorDetail = ex.Message;
+                return View("Error");
             }
         }
 
-        return View(pending);
-    }
+        // -------------------------------------------------------------------
+        //  APPROVE
+        // -------------------------------------------------------------------
 
-    // Dashboard for approvers
-    public ActionResult MyApprovals()
-    {
-        var user = HttpContext.Session["Username"]?.ToString() ?? "UnknownUser";
-        var pending = new List<WorkflowInstance>();
-
-        // Get all workflow instances with Status = "Pending"
-        var allPendingInstances = helper.GetWorkflowInstances()
-                                        //.Where(i => i.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase))
-                                        .ToList();
-
-        foreach (var instance in allPendingInstances)
+        [HttpPost]
+        public JsonResult Approve(ApproveRequest req)
         {
-            // Check if the logged-in user is an approver for this stage
-            if (instance.Approver != null && instance.Approver.Equals(user, StringComparison.OrdinalIgnoreCase))
+            try
             {
-                pending.Add(instance);
+                if (req == null || string.IsNullOrEmpty(req.InstanceId))
+                    return Json(new { success = false, message = "Invalid request." });
+                helper.ApproveInstance(req.InstanceId, CurrentUser, req.Comments);
+                return Json(new { success = true });
+            }
+            catch (UnauthorizedAccessException ex)
+            { return Json(new { success = false, message = ex.Message }); }
+            catch (Exception ex)
+            { return Json(new { success = false, message = ex.Message }); }
+        }
+
+        // -------------------------------------------------------------------
+        //  REJECT
+        // -------------------------------------------------------------------
+
+        [HttpPost]
+        public JsonResult Reject(RejectRequest req)
+        {
+            try
+            {
+                if (req == null || string.IsNullOrEmpty(req.InstanceId))
+                    return Json(new { success = false, message = "Invalid request." });
+                helper.RejectInstance(req.InstanceId, CurrentUser, req.Comments);
+                return Json(new { success = true });
+            }
+            catch (UnauthorizedAccessException ex)
+            { return Json(new { success = false, message = ex.Message }); }
+            catch (Exception ex)
+            { return Json(new { success = false, message = ex.Message }); }
+        }
+
+        // -------------------------------------------------------------------
+        //  DELEGATE
+        // -------------------------------------------------------------------
+
+        [HttpPost]
+        public JsonResult Delegate(DelegateRequest req)
+        {
+            try
+            {
+                if (req == null || string.IsNullOrEmpty(req.InstanceId) ||
+                    string.IsNullOrEmpty(req.ToUser))
+                    return Json(new { success = false, message = "Invalid request." });
+                helper.DelegateInstance(req.InstanceId, CurrentUser, req.ToUser, req.Reason);
+                return Json(new { success = true });
+            }
+            catch (UnauthorizedAccessException ex)
+            { return Json(new { success = false, message = ex.Message }); }
+            catch (Exception ex)
+            { return Json(new { success = false, message = ex.Message }); }
+        }
+
+        // -------------------------------------------------------------------
+        //  RECALL
+        // -------------------------------------------------------------------
+
+        [HttpPost]
+        public JsonResult Recall(RecallRequest req)
+        {
+            try
+            {
+                if (req == null || string.IsNullOrEmpty(req.WorkflowRunId))
+                    return Json(new { success = false, message = "Invalid request." });
+                helper.RecallWorkflowRun(req.WorkflowRunId, CurrentUser);
+                return Json(new { success = true });
+            }
+            catch (UnauthorizedAccessException ex)
+            { return Json(new { success = false, message = ex.Message }); }
+            catch (Exception ex)
+            { return Json(new { success = false, message = ex.Message }); }
+        }
+
+        // -------------------------------------------------------------------
+        //  AUDIT LOG
+        // -------------------------------------------------------------------
+
+        public ActionResult AuditLog(string itemUrl)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(itemUrl))
+                    return RedirectToAction("MyApprovals");
+                ViewBag.ItemUrl = itemUrl;
+                return View(helper.GetAuditLog(itemUrl));
+            }
+            catch (Exception ex)
+            {
+                ViewBag.ErrorTitle = "Audit Log Unavailable";
+                ViewBag.ErrorMessage = "The audit log for this document could not be loaded. Please check your SharePoint connection and try again.";
+                ViewBag.ErrorDetail = ex.Message;
+                return View("Error");
             }
         }
 
-        return View(pending);
-    }
+        // -------------------------------------------------------------------
+        //  ESCALATION  (admin / scheduler)
+        // -------------------------------------------------------------------
 
-
-    [HttpPost]
-    public JsonResult Approve(int instanceId, string itemUrl, string comments = "")
-    {
-        try
+        [HttpPost]
+        public JsonResult RunEscalation()
         {
-            var user = HttpContext.Session["Username"]?.ToString() ?? "UnknownUser";
-
-            // Get all workflow instances
-            var allInstances = helper.GetWorkflowInstances();
-
-            // Find the current instance by ID
-            var instance = allInstances.FirstOrDefault(i => i.Id == instanceId.ToString());
-            if (instance == null)
-                return Json(new { success = false, message = "Workflow instance not found." });
-
-            // Find the pending instance for this user
-            var pendingInstance = allInstances
-                .FirstOrDefault(i => i.ItemUrl == instance.ItemUrl && i.Status == "Pending" && i.Approver.Equals(user, StringComparison.OrdinalIgnoreCase));
-
-            if (pendingInstance == null)
-                return Json(new { success = false, message = "No pending approval found for this user on this document." });
-
-            helper.UpdateApprovalInstance(pendingInstance.Id, comments);
-
-            return Json(new { success = true });
-        }
-        catch (Exception ex)
-        {
-            return Json(new { success = false, message = ex.Message });
-        }
-    }
-
-
-
-    [HttpPost]
-    public JsonResult Reject(int instanceId, string comments = "")
-    {
-        try
-        {
-            var user = User.Identity.Name;
-
-            // Get the workflow instance
-            var instance = helper.GetWorkflowInstances().FirstOrDefault(i => i.Id.Equals(instanceId));
-            if (instance == null)
-                return Json(new { success = false, message = "Instance not found" });
-
-            // Get the workflow configuration
-            var workflow = helper.GetWorkflows().FirstOrDefault(w => w.Id.Equals(instance.WorkflowId));
-            if (workflow == null)
-                return Json(new { success = false, message = "Workflow configuration not found" });
-
-            // Get current stage
-            var stage = workflow.Stages.FirstOrDefault(s => s.Level.Equals(instance.CurrentLevel));
-            if (stage == null)
-                return Json(new { success = false, message = "Current stage not found" });
-
-            // Check if user is authorized to reject
-            if (!stage.Approvers.Contains(user, StringComparer.OrdinalIgnoreCase))
-                return Json(new { success = false, message = "Not authorized to reject this instance" });
-
-            // Update SharePoint list item (if using CSOM)
-            using (var ctx = helper.GetContext())
+            if (!IsAdmin) return Json(new { success = false, message = "Admin only." });
+            try
             {
-                var list = ctx.Web.Lists.GetByTitle("ApprovalInstances");
-                var spItem = list.GetItemById(instance.Id);
-
-                spItem["Status"] = "Rejected";
-                spItem["CompletedDate"] = DateTime.Now;
-                ctx.ExecuteQuery();
+                int count = helper.EscalateOverdueInstances();
+                return Json(new { success = true, escalated = count });
             }
-
-            return Json(new { success = true });
+            catch (Exception ex) { return Json(new { success = false, message = ex.Message }); }
         }
-        catch (Exception ex)
+
+        // -------------------------------------------------------------------
+        //  INFRASTRUCTURE SETUP  (admin one-time)
+        // -------------------------------------------------------------------
+
+        [HttpPost]
+        public JsonResult SetupInfrastructure()
         {
-            return Json(new { success = false, message = ex.Message });
+            if (!IsAdmin) return Json(new { success = false, message = "Admin only." });
+            try
+            {
+                helper.SetupWorkflowInfrastructure();
+                return Json(new { success = true, message = "SharePoint lists provisioned successfully." });
+            }
+            catch (Exception ex) { return Json(new { success = false, message = ex.Message }); }
+        }
+
+        // -------------------------------------------------------------------
+        //  BADGE COUNT  (nav pending-item count)
+        // -------------------------------------------------------------------
+
+        public JsonResult GetPendingCount()
+        {
+            try
+            {
+                int c = helper.GetPendingApprovalsForUser(CurrentUser).Count;
+                return Json(new { count = c }, JsonRequestBehavior.AllowGet);
+            }
+            catch { return Json(new { count = 0 }, JsonRequestBehavior.AllowGet); }
         }
     }
-
-
 }

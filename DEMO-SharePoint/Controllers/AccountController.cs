@@ -41,7 +41,7 @@ namespace DEMO_SharePoint.Controllers
                     context.ExecuteQuery(); // test credentials
                 }
 
-                // ✅ LOGIN SUCCESS: store in session
+                // Login success: store in session
                 Session["Username"] = model.Username;
                 Session["password"] = model.Password;
 

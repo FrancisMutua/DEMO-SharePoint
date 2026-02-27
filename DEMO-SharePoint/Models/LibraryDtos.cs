@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
+﻿using System.Collections.Generic;
 
-namespace KCAU_SharePoint.Models
+namespace DEMO_SharePoint.Models
 {
     public class LibraryDto
     {

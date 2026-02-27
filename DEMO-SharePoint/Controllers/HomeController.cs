@@ -1,5 +1,5 @@
-﻿using DEMO_SharePoint.Models;
-using KCAU_SharePoint.Models;
+﻿using Demo_SharePoint.Services.Implementations;
+using DEMO_SharePoint.Models;
 using Microsoft.SharePoint.ApplicationPages.ClientPickerQuery;
 using Microsoft.SharePoint.Client;
 using Microsoft.SharePoint.Client.Taxonomy;
@@ -22,7 +22,7 @@ using System.Web.Mvc;
 namespace DEMO_SharePoint.Controllers
 {
     [SessionAuthorize]
-    public class HomeController : Controller
+    public class HomeController : BaseController
     {
 
         Helper helper;
@@ -34,95 +34,117 @@ namespace DEMO_SharePoint.Controllers
 
         public ActionResult Index()
         {
-            var libraries = helper.GetDocumentLibraries();
-            ViewBag.Libraries = libraries;
-            var model = new DashboardViewModel
+            try
             {
-                RecentActivities = new List<RecentActivity>()
-            };
-
-            using (var context = helper.GetContext())
-            {
-
-                Web web = context.Web;
-                ListCollection lists = web.Lists;
-                context.Load(lists, l => l.Include(
-                    list => list.Title,
-                    list => list.BaseTemplate,
-                    list => list.ItemCount,
-                    list => list.Hidden
-                ));
-                context.ExecuteQuery();
-
-                // Total documents
-                model.TotalDocuments = lists.Where(l => l.BaseTemplate == 101 && !l.Hidden).Sum(l => l.ItemCount);
-
-                // Recent activities (last 7 days)
-                foreach (var list in lists.Where(l => l.BaseTemplate == 101 && !l.Hidden))
+                var libraries = helper.GetDocumentLibraries();
+                ViewBag.Libraries = libraries;
+                var model = new DashboardViewModel
                 {
-                    CamlQuery query = new CamlQuery
-                    {
-                        ViewXml = @"<View>
-                                <Query>
-                                    <Where>
-                                        <Geq>
-                                            <FieldRef Name='Created'/>
-                                            <Value Type='DateTime'>
-                                                <Today OffsetDays='-7'/>
-                                            </Value>
-                                        </Geq>
-                                    </Where>
-                                </Query>
-                                <RowLimit>10</RowLimit>
-                            </View>"
-                    };
+                    RecentActivities = new List<RecentActivity>()
+                };
 
-                    ListItemCollection items = list.GetItems(query);
-                    context.Load(items, i => i.Include(
-                        it => it["Author"],
-                        it => it["Editor"],
-                        it => it["FileLeafRef"],
-                        it => it["Created"]
+                using (var context = helper.GetContext())
+                {
+
+                    Web web = context.Web;
+                    ListCollection lists = web.Lists;
+                    context.Load(lists, l => l.Include(
+                        list => list.Title,
+                        list => list.BaseTemplate,
+                        list => list.ItemCount,
+                        list => list.Hidden
                     ));
                     context.ExecuteQuery();
 
-                    foreach (var item in items)
+                    // Total documents
+                    model.TotalDocuments = lists.Where(l => l.BaseTemplate == 101 && !l.Hidden).Sum(l => l.ItemCount);
+
+                    // Recent activities (last 7 days)
+                    foreach (var list in lists.Where(l => l.BaseTemplate == 101 && !l.Hidden))
                     {
-                        model.RecentActivities.Add(new RecentActivity
+                        CamlQuery query = new CamlQuery
                         {
-                            User = ((FieldUserValue)item["Author"]).LookupValue,
-                            Activity = "Uploaded Document",
-                            Document = item["FileLeafRef"]?.ToString(),
-                            Date = Convert.ToDateTime(item["Created"])
-                        });
+                            ViewXml = @"<View>
+                                    <Query>
+                                        <Where>
+                                            <Geq>
+                                                <FieldRef Name='Created'/>
+                                                <Value Type='DateTime'>
+                                                    <Today OffsetDays='-7'/>
+                                                </Value>
+                                            </Geq>
+                                        </Where>
+                                    </Query>
+                                    <RowLimit>10</RowLimit>
+                                </View>"
+                        };
+
+                        ListItemCollection items = list.GetItems(query);
+                        context.Load(items, i => i.Include(
+                            it => it["Author"],
+                            it => it["Editor"],
+                            it => it["FileLeafRef"],
+                            it => it["Created"]
+                        ));
+                        context.ExecuteQuery();
+
+                        foreach (var item in items)
+                        {
+                            model.RecentActivities.Add(new RecentActivity
+                            {
+                                User = ((FieldUserValue)item["Author"]).LookupValue,
+                                Activity = "Uploaded Document",
+                                Document = item["FileLeafRef"]?.ToString(),
+                                Date = Convert.ToDateTime(item["Created"])
+                            });
+                        }
                     }
+
+                    // Uploads today
+                    model.UploadsToday = model.RecentActivities.Count(a => a.Date.Date == DateTime.Now.Date);
+
+                    // Active users
+                    model.ActiveUsers = model.RecentActivities.Select(a => a.User).Distinct().Count();
                 }
 
-                // Uploads today
-                model.UploadsToday = model.RecentActivities.Count(a => a.Date.Date == DateTime.Now.Date);
-
-                // Active users
-                model.ActiveUsers = model.RecentActivities.Select(a => a.User).Distinct().Count();
+                return View(model);
             }
-
-            return View(model);
-
+            catch (Exception ex)
+            {
+                ViewBag.ErrorTitle = "Dashboard Unavailable";
+                ViewBag.ErrorMessage = "The dashboard could not be loaded. This is usually caused by a connection issue with SharePoint. Please try again or contact your administrator.";
+                ViewBag.ErrorDetail = ex.Message;
+                return View("Error");
+            }
         }
         public ActionResult DocumentLibrary(string libraryUrl)
         {
-            var libraries = helper.GetDocumentLibraries();
-            ViewBag.Libraries = libraries;
+            try
+            {
+                var libraries = helper.GetDocumentLibraries();
+                ViewBag.Libraries = libraries;
 
-            if (string.IsNullOrEmpty(libraryUrl))
-                return RedirectToAction("Index");
+                if (string.IsNullOrEmpty(libraryUrl))
+                    return RedirectToAction("Index");
 
-            ViewBag.LibraryUrl = libraryUrl;
+                ViewBag.LibraryUrl = libraryUrl;
 
-            // Get all files and folders
-            var items = GetFolderContents(libraryUrl);
-            ViewBag.Items = items;
+                var activeWorkflow = helper.GetWorkflowForLibrary(libraryUrl);
+                ViewBag.HasWorkflow = activeWorkflow != null;
 
-            return View();
+                // Get all files and folders
+                var items = GetFolderContents(libraryUrl);
+                ViewBag.Items = items;
+
+                return View();
+            }
+            catch (Exception ex)
+            {
+                ViewBag.ErrorTitle = "Library Unavailable";
+                ViewBag.ErrorMessage = "The document library could not be loaded. Please check the library URL and your SharePoint connection, then try again.";
+                ViewBag.ErrorDetail = ex.Message;
+                return View("Error");
+            }
         }
 
         /// <summary>
@@ -323,7 +345,7 @@ namespace DEMO_SharePoint.Controllers
                 using (var ctx = helper.GetContext())
                 {
 
-                    // 🔑 MUST be server-relative
+                    // URL must be server-relative
                     var folder = ctx.Web.GetFolderByServerRelativeUrl(libraryUrl);
 
                     ctx.Load(folder);
@@ -355,8 +377,8 @@ namespace DEMO_SharePoint.Controllers
                 if (workflow == null)
                     return Json(new { success = false, message = "No workflow configured." });
 
-                // Replace hard-coded user for demo; in real app, use User.Identity.Name
-                helper.CreateWorkflowInstance(itemUrl, itemName, User.Identity.Name);
+                string currentUser = HttpContext.Session["Username"]?.ToString() ?? User.Identity.Name;
+                helper.CreateWorkflowRun(itemUrl, itemName, currentUser, "Manual");
 
                 return Json(new { success = true });
             }
@@ -936,7 +958,7 @@ namespace DEMO_SharePoint.Controllers
                     item.RoleAssignments.Add(spUser, bindings);
                     ctx.ExecuteQuery();
 
-                    // 🔔 SEND ALERT EMAIL
+                    // Send alert email
                     if (!string.IsNullOrWhiteSpace(spUser.Email))
                     {
                         SendShareNotification(
@@ -1027,7 +1049,7 @@ namespace DEMO_SharePoint.Controllers
                             results.Add(new
                             {
                                 DisplayName = user.Title,
-                                Login = NormalizeLogin(user.LoginName), // ✅ CLEAN LOGIN
+                                Login = NormalizeLogin(user.LoginName),
                                 Email = email
                             });
 
@@ -1112,7 +1134,7 @@ namespace DEMO_SharePoint.Controllers
             string url = libraryUrl.TrimStart('/');
 
             // Get the last part of the URL path
-            // Example: "sites/site/DocumentLibrary" → "DocumentLibrary"
+            // Example: "sites/site/DocumentLibrary" -> "DocumentLibrary"
             string[] parts = url.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
 
             return parts.Length > 0 ? parts[parts.Length - 1] : null;
@@ -1368,9 +1390,9 @@ namespace DEMO_SharePoint.Controllers
             }
         }
 
-        // ═══════════════════════════════════════════════
-        //  LIBRARY MANAGER — Save & Delete
-        // ═══════════════════════════════════════════════
+        // -------------------------------------------------
+        //  LIBRARY MANAGER - Save & Delete
+        // -------------------------------------------------
 
         /// <summary>
         /// Creates or updates a document library and adds its metadata fields in SharePoint.
@@ -1389,7 +1411,7 @@ namespace DEMO_SharePoint.Controllers
                     var web = ctx.Web;
                     List library = null;
 
-                    // 1️⃣ CHECK IF LIBRARY EXISTS — try to load by title
+                    // 1. Check if library exists - try to load by title
                     try
                     {
                         library = web.Lists.GetByTitle(dto.Name);
@@ -1403,7 +1425,7 @@ namespace DEMO_SharePoint.Controllers
 
                     if (library == null)
                     {
-                        // 2️⃣ CREATE NEW LIBRARY
+                        // 2. Create new library
                         // Strip leading slashes and use only last segment as internal URL name
                         string internalName = dto.Url.TrimStart('/').Split('/').Last();
 
@@ -1424,12 +1446,12 @@ namespace DEMO_SharePoint.Controllers
                         ctx.ExecuteQuery();
                     }
 
-                    // 3️⃣ ENABLE CONTENT TYPES (required for custom columns)
+                    // 3. Enable content types (required for custom columns)
                     library.ContentTypesEnabled = true;
                     library.Update();
                     ctx.ExecuteQuery();
 
-                    // 4️⃣ ADD / ENSURE METADATA FIELDS
+                    // 4. Add / ensure metadata fields
                     if (dto.Fields != null)
                     {
                         // Load existing field internal names to avoid duplicates
@@ -1459,7 +1481,7 @@ namespace DEMO_SharePoint.Controllers
                             }
                             catch
                             {
-                                // Field may conflict — skip gracefully
+                                // Field may conflict - skip gracefully
                             }
                         }
                     }
@@ -1518,7 +1540,7 @@ namespace DEMO_SharePoint.Controllers
             }
         }
 
-        // ─── Field XML builder ───────────────────────────────────────────────────
+        // Field XML builder
         private string BuildFieldXml(MetaFieldDto field)
         {
             string spType;
@@ -1549,9 +1571,9 @@ namespace DEMO_SharePoint.Controllers
         }
     }
 
-    // ═══════════════════════════════════════════════
-    //  DTOs  (kept in same file for simplicity)
-    // ═══════════════════════════════════════════════
+    // -------------------------------------------------
+    //  DTOs (kept in same file for simplicity)
+    // -------------------------------------------------
 
     /// <summary>Payload sent from the Library Manager view when saving a library.</summary>
     public class LibraryDto

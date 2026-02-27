@@ -1,0 +1,315 @@
+﻿@model List<DEMO_SharePoint.Models.WorkflowAuditEntry>
+@{
+    string itemUrl   = ViewBag.ItemUrl as string ?? "";
+    string itemName  = Model != null && Model.Any() ? Model.First().ItemName : System.IO.Path.GetFileName(itemUrl);
+    string wfName    = Model != null && Model.Any() ? Model.First().WorkflowName : "";
+    string runId     = Model != null && Model.Any() ? Model.First().WorkflowRunId : "";
+    var    entries   = Model ?? new List<DEMO_SharePoint.Models.WorkflowAuditEntry>();
+
+    // Current overall status - last entry's Action
+    string lastAction = entries.Any() ? entries.Last().Action : "";
+    bool   isComplete = lastAction == "Completed";
+    bool   isRejected = lastAction == "Rejected";
+    bool   isRecalled = lastAction == "Recalled";
+}
+
+<!--  CDN libs  -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+    /*  Timeline  */
+    .timeline { position:relative; padding-left:40px; }
+    .timeline::before {
+        content:'';
+        position:absolute;
+        left:16px;
+        top:0;
+        bottom:0;
+        width:2px;
+        background:linear-gradient(to bottom, #e84f26 0%, #e2e8f0 100%);
+        border-radius:2px;
+    }
+    .tl-item { position:relative; margin-bottom:28px; }
+    .tl-dot {
+        position:absolute;
+        left:-32px;
+        top:8px;
+        width:30px;
+        height:30px;
+        border-radius:50%;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:.88rem;
+        border:2px solid #fff;
+        box-shadow:0 0 0 3px #e2e8f0;
+        z-index:1;
+    }
+    .tl-card {
+        background:#fff;
+        border:1px solid #e2e8f0;
+        border-radius:10px;
+        padding:14px 18px;
+        transition:box-shadow .15s;
+    }
+    .tl-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.08); }
+    .tl-card.tl-first { border-color:#e84f26; border-width:1.5px; }
+    .tl-card.tl-last  { border-color: #22c55e; border-width:1.5px; }
+    .tl-card.tl-reject { border-color:#ef4444; border-width:1.5px; }
+    .tl-card.tl-recall { border-color:#f59e0b; border-width:1.5px; }
+
+    .tl-time { font-size:.7rem; color:#94a3b8; font-family:monospace; }
+    .tl-actor { font-size:.82rem; font-weight:600; color:#1e293b; }
+    .tl-comment { font-size:.82rem; color:#475569; background:#f8fafc; border-left:3px solid #cbd5e1;
+                  padding:6px 12px; border-radius:0 6px 6px 0; margin-top:8px; }
+
+    /* Status pill */
+    .run-status {
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        padding:5px 14px;
+        border-radius:20px;
+        font-size:.82rem;
+        font-weight:700;
+    }
+
+    /* header doc card */
+    .doc-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 22px; }
+    .doc-card .doc-icon { font-size:2rem; }
+    .step-node {
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        gap:4px;
+        font-size:.72rem;
+        color:#64748b;
+        font-weight:600;
+    }
+    .step-circle {
+        width:32px;
+        height:32px;
+        border-radius:50%;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:.8rem;
+        font-weight:700;
+    }
+    .step-line { flex:1; height:2px; background:#e2e8f0; }
+</style>
+
+<!--  Back nav  -->
+<div class="mb-3">
+    <button onclick="history.back()" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </button>
+</div>
+
+<!--  Document header card  -->
+<div class="doc-card mb-4">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+        <div class="doc-icon text-primary">
+            @{
+                string ext = System.IO.Path.GetExtension(itemUrl).ToLower();
+                string docIcon;
+
+                if (ext == ".pdf")
+                {
+                    docIcon = "bi-file-earmark-pdf text-danger";
+                }
+                else if (ext == ".docx" || ext == ".doc")
+                {
+                    docIcon = "bi-file-earmark-word text-primary";
+                }
+                else if (ext == ".xlsx" || ext == ".xls")
+                {
+                    docIcon = "bi-file-earmark-excel text-success";
+                }
+                else if (ext == ".pptx" || ext == ".ppt")
+                {
+                    docIcon = "bi-file-earmark-slides text-warning";
+                }
+                else
+                {
+                    docIcon = "bi-file-earmark text-secondary";
+                }
+            }
+            <i class="bi @docIcon"></i>
+        </div>
+        <div class="flex-grow-1">
+            <h6 class="mb-0 fw-bold">@(string.IsNullOrEmpty(itemName) ? "Document" : itemName)</h6>
+            @if (!string.IsNullOrEmpty(wfName))
+            {
+                <div style="font-size:.78rem;color:#64748b;"><i class="bi bi-diagram-3 me-1"></i>@wfName</div>
+            }
+            @if (!string.IsNullOrEmpty(runId))
+            {
+                <div style="font-size:.68rem;color:#94a3b8;font-family:monospace;">Run ID: @runId</div>
+            }
+        </div>
+        <div>
+            @if (isComplete)
+            {
+                <span class="run-status" style="background:#f0fdf4;color:#166534;">
+                    <i class="bi bi-patch-check-fill"></i>Approved &amp; Completed
+                </span>
+            }
+            else if (isRejected)
+            {
+                <span class="run-status" style="background:#fff5f5;color:#b91c1c;">
+                    <i class="bi bi-x-circle-fill"></i>Rejected
+                </span>
+            }
+            else if (isRecalled)
+            {
+                <span class="run-status" style="background:#fffbeb;color:#92400e;">
+                    <i class="bi bi-arrow-counterclockwise"></i>Recalled
+                </span>
+            }
+            else if (entries.Any())
+            {
+                <span class="run-status" style="background:#eff6ff;color:#1e40af;">
+                    <i class="bi bi-hourglass-split"></i>In Progress
+                </span>
+            }
+        </div>
+    </div>
+
+    <!-- Stage progress strip -->
+    @{
+        var stages = entries.Select(e => e.Stage).Where(s => s > 0).Distinct().OrderBy(s => s).ToList();
+        int maxStage = stages.Any() ? stages.Max() : 0;
+    }
+    @if (maxStage > 1)
+    {
+        <div class="d-flex align-items-center mt-3 flex-wrap gap-2">
+            @for (int s = 1; s <= maxStage; s++)
+            {
+                bool stageHasApproval = entries.Any(e => e.Stage == s && e.Action == "Approved");
+                bool stageHasReject   = entries.Any(e => e.Stage == s && e.Action == "Rejected");
+                bool stageIsActive    = entries.Any(e => e.Stage == s && e.Action == "Submitted");
+
+                string circleCls = stageHasApproval ? "bg-success text-white"
+                    : stageHasReject   ? "bg-danger text-white"
+                    : stageIsActive    ? "bg-primary text-white"
+                    : "bg-light text-muted border";
+
+                <div class="step-node">
+                    <div class="step-circle @circleCls">
+                        @if (stageHasApproval) { <i class="bi bi-check-lg"></i> }
+                        else if (stageHasReject) { <i class="bi bi-x-lg"></i> }
+                        else { <span>@s</span> }
+                    </div>
+                    <span>Stage @s</span>
+                </div>
+                if (s < maxStage)
+                {
+                    <div class="step-line"></div>
+                }
+            }
+        </div>
+    }
+</div>
+
+<!--  Summary row  -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h6 class="mb-0 fw-bold">
+        <i class="bi bi-clock-history me-2" style="color:#e84f26;"></i>
+        Audit Trail
+        <span class="badge bg-secondary ms-2" style="font-size:.72rem;">@entries.Count events</span>
+    </h6>
+    @if (!string.IsNullOrEmpty(itemUrl))
+    {
+        <a href="@Url.Action("MyApprovals","Workflow")" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-check2-square me-1"></i>My Approvals
+        </a>
+    }
+</div>
+
+<!--  Timeline  -->
+@if (entries.Any())
+{
+    <div class="timeline">
+        @for (int i = 0; i < entries.Count; i++)
+        {
+            var e = entries[i];
+            bool isFirst = (i == 0);
+            bool isLast  = (i == entries.Count - 1);
+
+            string cardExtra = isFirst ? "tl-first"
+                : isLast && isComplete ? "tl-last"
+                : isLast && isRejected ? "tl-reject"
+                : isLast && isRecalled ? "tl-recall"
+                : "";
+
+            <div class="tl-item">
+                <!-- Dot -->
+                <div class="tl-dot @e.BadgeClass">
+                    <i class="bi @e.Icon text-white"></i>
+                </div>
+
+                <!-- Card -->
+                <div class="tl-card @cardExtra">
+                    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+                        <div>
+                            <span class="badge @e.BadgeClass me-2" style="font-size:.74rem;">
+                                <i class="bi @e.Icon me-1"></i>@e.Action
+                            </span>
+                            @if (e.Stage > 0)
+                            {
+                                <span class="badge bg-light text-dark border" style="font-size:.7rem;">
+                                    Stage @e.Stage
+                                </span>
+                            }
+                        </div>
+                        <div class="tl-time">
+                            <i class="bi bi-clock me-1"></i>
+                            @e.Timestamp.ToString("dd MMM yyyy  HH:mm")
+                        </div>
+                    </div>
+
+                    <div class="tl-actor mt-2">
+                        <i class="bi bi-person-circle me-1 text-secondary"></i>@e.Actor
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(e.ItemName) && isFirst)
+                    {
+                        <div style="font-size:.78rem;color:#64748b;margin-top:4px;">
+                            <i class="bi bi-file-earmark me-1"></i>@e.ItemName
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(e.Comments))
+                    {
+                        <div class="tl-comment">
+                            <i class="bi bi-chat-left-text me-1 text-secondary"></i>@e.Comments
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="text-center py-5">
+        <i class="bi bi-clock-history display-5 text-muted"></i>
+        <p class="text-muted mt-3 mb-0 fw-semibold">No audit entries found</p>
+        <p class="text-muted" style="font-size:.82rem;">Actions taken on this document will appear here.</p>
+    </div>
+}
+
+<!-- Print button at the bottom -->
+@if (entries.Any())
+{
+    <div class="text-center mt-4 mb-2">
+        <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i>Print Audit Trail
+        </button>
+    </div>
+}
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

@@ -8,7 +8,6 @@ using DEMO_SharePoint.Services.Implementations;
 using DEMO_SharePoint.Services.Interfaces;
 using DEMO_SharePoint.Services.Models;
 using Microsoft.SharePoint.Client;
-using ScanPortal.Web.ViewModels;
 
 namespace DEMO_SharePoint.Controllers
 {
@@ -405,7 +404,7 @@ namespace DEMO_SharePoint.Controllers
                         {
                             var itemUrl = uploadFile.ServerRelativeUrl;
                             var username = HttpContext.Session["Username"]?.ToString() ?? "Unknown";
-                            _helper.CreateWorkflowInstance(itemUrl, fileName, username);
+                            _helper.ProcessTrigger(itemUrl, fileName, username, "Upload");
                         }
                         catch (Exception workflowEx)
                         {

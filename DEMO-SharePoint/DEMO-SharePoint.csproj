@@ -192,8 +192,8 @@
     <Compile Include="App_Start\FilterConfig.cs" />
     <Compile Include="App_Start\RouteConfig.cs" />
     <Compile Include="Controllers\AccountController.cs" />
+    <Compile Include="Controllers\BaseController.cs" />
     <Compile Include="Controllers\HomeController.cs" />
-    <Compile Include="Controllers\MetaFieldDto.cs" />
     <Compile Include="Controllers\ScanController.cs" />
     <Compile Include="Controllers\WorkflowController.cs" />
     <Compile Include="Global.asax.cs">
@@ -209,6 +209,8 @@
     <Compile Include="Models\WorkflowInstance.cs" />
     <Compile Include="Models\WorkflowConfigVM.cs" />
     <Compile Include="Models\SPLibrary.cs" />
+    <Compile Include="Models\WorkflowAuditEntry.cs" />
+    <Compile Include="Models\NotificationService.cs" />
     <Compile Include="Models\WorkflowModel.cs" />
     <Compile Include="Models\WorkflowStageModel.cs" />
     <Compile Include="Models\ListManager.cs" />
@@ -300,9 +302,11 @@
     <Content Include="Views\Shared\_Layout.cshtml" />
     <Content Include="Views\Scan\Index.cshtml" />
     <Content Include="Views\Workflow\SubmittedApprovals.cshtml" />
+    <Content Include="Views\Workflow\AuditLog.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
+    <Folder Include="Views\Default\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Content\bootstrap.rtl.min.css.map" />

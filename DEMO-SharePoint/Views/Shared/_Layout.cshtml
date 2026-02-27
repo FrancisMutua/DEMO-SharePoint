@@ -5,7 +5,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>@ViewBag.Title — AppKings DMS</title>
+    <title>@ViewBag.Title - AppKings DMS</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -16,18 +16,18 @@
     <link rel="icon" type="image/x-icon" href="~/assets/imgs/appkings-logo.ico" asp-append-version="true" />
 
     <style>
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-       APPKINGS DMS — DESIGN SYSTEM
+    /*
+       APPKINGS DMS - DESIGN SYSTEM
        Logo palette (pixel-extracted):
-         Crown red   #E84F26    → primary actions, CTAs
-         Yellow      #FEB900    → warnings, folders
-         Orange      #F05028    → secondary alerts
-         Green       #83BB00    → success, confirmations
-         Blue        #00A7E4    → info, links, focus
-         Navy        #1C2033    → sidebar, headings
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+         Crown red   #E84F26    -> primary actions, CTAs
+         Yellow      #FEB900    -> warnings, folders
+         Orange      #F05028    -> secondary alerts
+         Green       #83BB00    -> success, confirmations
+         Blue        #00A7E4    -> info, links, focus
+         Navy        #1C2033    -> sidebar, headings
+    */
     :root {
-        /* ── Core brand tokens ── */
+        /*  Core brand tokens  */
         --ak-red:           #E84F26;
         --ak-red-dark:      #C73E1A;
         --ak-red-light:     #FEF0EB;
@@ -45,14 +45,14 @@
         --ak-navy-mid:      #242840;
         --ak-navy-light:    #2E3350;
 
-        /* ── Semantic UI tokens ── */
+        /*  Semantic UI tokens  */
         --color-primary:    var(--ak-red);
         --color-success:    var(--ak-green);
         --color-warning:    var(--ak-yellow);
         --color-danger:     var(--ak-red);
         --color-info:       var(--ak-blue);
 
-        /* ── Bootstrap overrides ── */
+        /*  Bootstrap overrides  */
         --bs-primary:       #E84F26;
         --bs-secondary:     #1C2033;
         --bs-success:       #83BB00;
@@ -60,37 +60,37 @@
         --bs-warning:       #FEB900;
         --bs-info:          #00A7E4;
 
-        /* ── Surface system ── */
+        /*  Surface system  */
         --surface-page:     #F2F4F8;
         --surface-card:     #FFFFFF;
         --surface-raised:   #FFFFFF;
         --surface-subtle:   #F7F8FB;
         --surface-overlay:  rgba(28,32,51,.06);
 
-        /* ── Border system ── */
+        /*  Border system  */
         --border-light:     #E8EAF0;
         --border-mid:       #D0D4E0;
         --border-strong:    #B0B6C8;
 
-        /* ── Text system ── */
+        /*  Text system  */
         --text-heading:     #111827;
         --text-body:        #374151;
         --text-secondary:   #6B7280;
         --text-muted:       #9CA3AF;
         --text-disabled:    #C8CDD6;
 
-        /* ── Topbar ── */
+        /*  Topbar  */
         --topbar-bg:        #FFFFFF;
         --topbar-h:         60px;
 
-        /* ── Sidebar ── */
+        /*  Sidebar  */
         --sidebar-w:        252px;
         --sidebar-bg:       #1C2033;
         --sidebar-mid:      #242840;
         --sidebar-text:     rgba(255,255,255,.65);
         --sidebar-text-active: #FFFFFF;
 
-        /* ── DL tokens ── */
+        /*  DL tokens  */
         --dl-accent:        var(--ak-blue);
         --dl-accent-light:  var(--ak-blue-light);
         --dl-accent-hover:  var(--ak-blue-dark);
@@ -109,29 +109,29 @@
         --dl-text-secondary:var(--text-secondary);
         --dl-text-muted:    var(--text-muted);
 
-        /* ── Radius ── */
+        /*  Radius  */
         --r-xs: 4px;
         --r-sm: 6px;
         --r:    10px;
         --r-lg: 14px;
         --r-xl: 20px;
 
-        /* ── Shadow ── */
+        /*  Shadow  */
         --shadow-xs:  0 1px 2px rgba(0,0,0,.04);
         --shadow-sm:  0 1px 4px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
         --shadow:     0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.05);
         --shadow-lg:  0 8px 32px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
         --shadow-red: 0 4px 16px rgba(232,79,38,.28);
 
-        /* ── Type ── */
+        /*  Type  */
         --font:      'Plus Jakarta Sans', "Segoe UI", system-ui, sans-serif;
         --font-mono: 'JetBrains Mono', 'Courier New', monospace;
 
-        /* ── Transition ── */
+        /*  Transition  */
         --t: 0.17s ease;
         --t-slow: 0.32s ease;
 
-        /* ── DL compat aliases ── */
+        /*  DL compat aliases  */
         --dl-radius:    var(--r);
         --dl-radius-sm: var(--r-sm);
         --dl-radius-lg: var(--r-lg);
@@ -143,9 +143,9 @@
         --dl-transition:var(--t);
     }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        RESET & BASE
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
 
@@ -164,9 +164,9 @@
     ::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 99px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        SIDEBAR
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     .sidebar {
         position: fixed;
         top: 0; left: 0;
@@ -313,9 +313,9 @@
         font-size: .66rem; color: rgba(255,255,255,.3);
     }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        TOPBAR
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     .topbar {
         position: fixed;
         top: 0; left: var(--sidebar-w); right: 0;
@@ -443,9 +443,9 @@
         font-size: 1rem; color: var(--text-secondary);
     }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        MAIN CONTENT
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     .main-content {
         margin-left: var(--sidebar-w);
         padding-top: var(--topbar-h);
@@ -474,9 +474,9 @@
     }
     .btn-back:hover { border-color: var(--border-mid); color: var(--text-heading); }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        CARD SYSTEM
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     .card {
         background: var(--surface-card);
         border: 1px solid var(--border-light);
@@ -492,9 +492,9 @@
         border-radius: var(--r-lg) var(--r-lg) 0 0;
     }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        BUTTON SYSTEM
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     .btn-ak {
         display: inline-flex; align-items: center; gap: 6px;
         padding: 8px 16px;
@@ -566,9 +566,9 @@
         background: var(--ak-red); border-color: var(--ak-red);
     }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        LOADER
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     #globalLoader {
         position: fixed; inset: 0;
         background: rgba(28,32,51,.55);
@@ -594,9 +594,9 @@
         letter-spacing: .06em; text-transform: uppercase;
     }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-       DOCUMENT LIBRARY — PAGE LAYOUT
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    /*
+       DOCUMENT LIBRARY - PAGE LAYOUT
+    */
     .dl-wrapper { font-family: var(--font); }
 
     .dl-header {
@@ -699,9 +699,9 @@
         color: #004f7a;
     }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        DATATABLE
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     #documentsTable_wrapper { padding: 0; }
     #documentsTable_wrapper .row { margin: 0; }
     div.dataTables_wrapper div.dataTables_filter,
@@ -758,9 +758,9 @@
     }
     table#documentsTable tbody td:last-child { text-align: center; }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        ITEM CELLS
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     .item-name-cell { display: flex; align-items: center; gap: 10px; }
     .item-icon {
         width: 34px; height: 34px; min-width: 34px; border-radius: var(--r-sm);
@@ -831,9 +831,9 @@
     .dl-empty h6 { font-size: .95rem; font-weight: 600; color: var(--text-secondary); }
     .dl-empty p  { font-size: .82rem; margin-top: 5px; }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        MODALS
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     .dl-wrapper .modal-content {
         border: 1px solid var(--border-light);
         border-radius: var(--r-lg);
@@ -880,9 +880,9 @@
         outline: none;
     }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        DROP ZONE
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     #dropZone {
         border: 2px dashed var(--border-mid);
         border-radius: var(--r);
@@ -944,9 +944,9 @@
         color: #7a1a00;
     }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        VIEWERS
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     #viewerContent { width: 100%; height: 100%; overflow: auto; }
     #pdfViewerContainer { position: relative; }
     #pdfViewerContainer canvas { display: block; margin: 0 auto 10px; border: 1px solid var(--border-light); }
@@ -964,9 +964,9 @@
     .viewer-unsupported { padding: 50px; text-align: center; color: var(--text-muted); }
     .viewer-unsupported .uns-icon { font-size: 3rem; opacity: .25; margin-bottom: 14px; display: block; }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        VERSIONS & METADATA
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     .version-item {
         display: flex; align-items: center; justify-content: space-between;
         padding: 10px 14px; border: 1px solid var(--border-light);
@@ -982,9 +982,9 @@
     .meta-required-star { color: var(--ak-red); margin-left: 2px; }
     .meta-type-hint { font-size: .69rem; color: var(--text-muted); margin-top: 3px; font-family: var(--font-mono); }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        SHARE & USER SEARCH
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     #userResults {
         z-index: 1060; border: 1px solid var(--border-light);
         border-radius: var(--r); box-shadow: var(--shadow-lg);
@@ -1001,9 +1001,9 @@
     .share-link-group { display: flex; gap: 6px; }
     .share-link-group input { font-family: var(--font-mono); font-size: .75rem; }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        RESPONSIVE
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     @@media (max-width: 768px) {
         .sidebar { transform: translateX(-100%); }
         .sidebar.show { transform: translateX(0); }
@@ -1016,9 +1016,9 @@
         .dl-header { flex-direction: column; align-items: flex-start; }
     }
 
-    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    /*
        ANIMATION & POLISH
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    */
     @@keyframes fadeInUp {
         from { opacity: 0; transform: translateY(10px); }
         to   { opacity: 1; transform: translateY(0); }
@@ -1034,13 +1034,13 @@
 </head>
 
 <body>
-    <!-- ══════════════════ LOADER ══════════════════ -->
+    <!-- --- LOADER --- -->
     <div id="globalLoader">
         <div class="loader-ring"></div>
         <div class="loader-text">Loading&hellip;</div>
     </div>
 
-    <!-- ══════════════════ SIDEBAR ══════════════════ -->
+    <!-- --- SIDEBAR --- -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-colorbar"></div>
 
@@ -1109,7 +1109,7 @@
 
     </aside>
 
-    <!-- ══════════════════ TOPBAR ══════════════════ -->
+    <!-- --- TOPBAR --- -->
     <header class="topbar">
         <button class="topbar-mobile-toggle" id="toggleSidebar">
             <i class="bi bi-list"></i>
@@ -1160,7 +1160,7 @@
         </div>
     </header>
 
-    <!-- ══════════════════ CONTENT ══════════════════ -->
+    <!-- --- CONTENT --- -->
     <main class="main-content">
         <div class="page-body">
             <div class="page-nav-row">

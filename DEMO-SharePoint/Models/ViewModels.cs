@@ -2,9 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Web.Mvc;
-using DEMO_SharePoint.Models;
-
-namespace ScanPortal.Web.ViewModels
+namespace DEMO_SharePoint.Models
 {
     public class ScanSettingsViewModel
     {
@@ -113,7 +111,7 @@ namespace ScanPortal.Web.ViewModels
     /// </summary>
     public class ScanIndexViewModel
     {
-        // ── Step 1: Scanner Selection ─────────────
+        // Step 1: Scanner Selection
 
         /// <summary>
         /// List of TWAIN scanner names retrieved from the local ScanPortal Agent
@@ -130,7 +128,7 @@ namespace ScanPortal.Web.ViewModels
         [Display(Name = "Scanner")]
         public string SelectedScanner { get; set; }
 
-        // ── Step 2: Scan Settings ─────────────────
+        // Step 2: Scan Settings
 
         /// <summary>
         /// Scan resolution in dots per inch.
@@ -168,7 +166,7 @@ namespace ScanPortal.Web.ViewModels
         [Display(Name = "Use Auto Document Feeder (ADF)")]
         public bool UseADF { get; set; } = true;
 
-        // ── Scan Profiles ─────────────────────────
+        // Scan Profiles
 
         /// <summary>
         /// All saved scan profiles loaded from SharePoint 'ScanProfiles' custom list
@@ -185,7 +183,7 @@ namespace ScanPortal.Web.ViewModels
         /// </summary>
         public int? SelectedProfileId { get; set; }
 
-        // ── Target Library ────────────────────────
+        // Target Library
 
         /// <summary>
         /// SharePoint document library into which the scanned document
@@ -202,11 +200,11 @@ namespace ScanPortal.Web.ViewModels
         public List<SelectListItem> LibraryOptions { get; set; }
             = new List<SelectListItem>();
 
-        // ── Agent Status ──────────────────────────
+        // Agent Status
 
         /// <summary>
         /// True when the local scanner agent responded to the health check.
-        /// False means the agent is not running on this workstation —
+        /// False means the agent is not running on this workstation -
         /// the view renders an "Agent offline" warning banner.
         /// </summary>
         public bool AgentOnline { get; set; } = false;
@@ -218,7 +216,7 @@ namespace ScanPortal.Web.ViewModels
         /// </summary>
         public string AgentErrorMessage { get; set; }
 
-        // ── Convenience Helpers ───────────────────
+        // Convenience Helpers
 
         /// <summary>
         /// True when at least one scanner is available from the agent.

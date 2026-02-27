@@ -1,414 +1,535 @@
 ﻿@model DEMO_SharePoint.Models.WorkflowConfigVM
-
 @{
     ViewBag.Title = "Workflow Management";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h3 class="fw-bold mb-1">Workflow Management</h3>
-            <p class="text-muted mb-0">Manage document approval workflows</p>
-        </div>
+<style>
+.wf-card { border:none; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.07); }
+.wf-trigger-badge { font-size:.72rem; padding:3px 9px; border-radius:20px; }
+.stage-card { background:#f8f9fb; border:1px solid #e8eaf0; border-radius:8px; }
+.approval-mode-pill {
+    display:inline-flex; gap:4px; background:#eff0f4;
+    border-radius:20px; padding:3px; font-size:.72rem;
+}
+.approval-mode-pill button {
+    border:none; background:transparent; border-radius:16px;
+    padding:2px 12px; cursor:pointer; font-size:.72rem; font-weight:600;
+    transition:all .15s;
+}
+.approval-mode-pill button.active { background:#fff; color:#E84F26; box-shadow:0 1px 3px rgba(0,0,0,.15); }
 
-        <button class="btn btn-primary shadow-sm"
-                data-bs-toggle="modal"
-                data-bs-target="#addWorkflowModal">
-            <i class="bi bi-plus-lg"></i> Add Workflow
+/* Tag-picker */
+.tag-box {
+    cursor:text; min-height:42px; background:#fff;
+    display:flex; flex-wrap:wrap; gap:4px; align-items:center; padding:6px 10px;
+}
+.tag-box.box-sm { min-height:36px; padding:4px 8px; }
+.tag-box .tag-search {
+    border:none; outline:none; box-shadow:none; min-width:140px; flex:1;
+    font-size:.88rem; background:transparent;
+}
+.tag-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    background:#1C2033; color:#fff;
+    font-size:.75rem; padding:3px 8px; border-radius:20px;
+    white-space:nowrap;
+}
+.tag-badge .tag-remove {
+    cursor:pointer; opacity:.7; font-size:.8rem; line-height:1;
+}
+.tag-badge .tag-remove:hover { opacity:1; }
+.tag-box.border-danger { border-color:#dc3545 !important; }
+</style>
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-1">Workflow Management</h3>
+        <p class="text-muted mb-0">Configure approval workflows for document libraries</p>
+    </div>
+    <div class="d-flex gap-2">
+        @if (Session["Username"]?.ToString()?.Equals("Administrator", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            <button class="btn btn-outline-secondary btn-sm" onclick="setupInfrastructure()">
+                <i class="bi bi-gear me-1"></i>Provision SP Lists
+            </button>
+            <button class="btn btn-outline-warning btn-sm" onclick="runEscalation()">
+                <i class="bi bi-alarm me-1"></i>Run Escalation
+            </button>
+        }
+        <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addWorkflowModal">
+            <i class="bi bi-plus-lg me-1"></i>Add Workflow
         </button>
     </div>
+</div>
 
-    <!-- Workflows Card -->
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-0">
-
-            @if (Model.ExistingWorkflows != null && Model.ExistingWorkflows.Any())
-            {
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
+<!-- Workflow table -->
+<div class="card wf-card">
+    <div class="card-body p-0">
+        @if (Model.ExistingWorkflows != null && Model.ExistingWorkflows.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Workflow</th>
+                            <th>Library</th>
+                            <th>Stages</th>
+                            <th>Triggers</th>
+                            <th>On Reject</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var wf in Model.ExistingWorkflows)
+                        {
                             <tr>
-                                <th>Workflow</th>
-                                <th>Library</th>
-                                <th>Levels</th>
-                                <th>Approvers</th>
-                                <th>Status</th>
-                                <th class="text-end">Actions</th>
+                                <td>
+                                    <div class="fw-semibold">@wf.WorkflowName</div>
+                                    <small class="text-muted">@wf.Levels level@(wf.Levels != 1 ? "s" : "")</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border" style="font-size:.72rem;font-family:monospace;">
+                                        @(wf.LibraryUrl?.Split('/').LastOrDefault() ?? wf.LibraryUrl)
+                                    </span>
+                                </td>
+                                <td style="min-width:260px;">
+                                    @if (wf.Stages != null && wf.Stages.Any())
+                                    {
+                                        foreach (var s in wf.Stages)
+                                        {
+                                            <div class="d-flex align-items-start gap-2 mb-1">
+                                                <span class="badge bg-primary-subtle text-primary" style="min-width:58px;font-size:.7rem;">L@(s.Level) @s.ApprovalMode</span>
+                                                <small class="text-muted">
+                                                    @string.Join(", ", s.Approvers ?? new System.Collections.Generic.List<string>())
+                                                    @if (s.DueInDays > 0)
+                                                    {
+                                                        <span class="text-secondary"> · @(s.DueInDays)d</span>
+                                                    }
+                                                </small>
+                                            </div>
+                                        }
+                                    }
+                                </td>
+                                <td>
+                                    @if (wf.TriggerEvents != null)
+                                    {
+                                        foreach (var t in wf.TriggerEvents)
+                                        {
+                                            <span class="badge wf-trigger-badge bg-info-subtle text-info me-1">@t</span>
+                                        }
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-secondary" style="font-size:.72rem;">
+                                        @(wf.RejectionBehavior?.Replace("Return", "-> ").Replace("Restart", "~ ") ?? "-")
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge @(wf.IsActive ? "bg-success" : "bg-secondary")">
+                                        @(wf.IsActive ? "Active" : "Inactive")
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-secondary me-1"
+                                            onclick="toggleWorkflow(@wf.Id, @(wf.IsActive ? "false" : "true"))">
+                                        <i class="bi @(wf.IsActive ? "bi-pause" : "bi-play")"></i>
+                                        @(wf.IsActive ? "Pause" : "Activate")
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            onclick="deleteWorkflow(@wf.Id)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var wf in Model.ExistingWorkflows)
-                            {
-                                <tr>
-                                    <!-- Workflow Name -->
-                                    <td>
-                                        <div class="fw-semibold">@wf.WorkflowName</div>
-                                        <small class="text-muted">
-                                            @wf.Levels Approval Levels
-                                        </small>
-                                    </td>
-
-                                    <!-- Library -->
-                                    <td>
-                                        <span class="badge bg-light text-dark border">
-                                            @wf.LibraryUrl
-                                        </span>
-                                    </td>
-
-                                    <!-- Levels -->
-                                    <td>
-                                        @if (wf.Stages != null && wf.Stages.Any())
-                                        {
-                                            foreach (var stage in wf.Stages)
-                                            {
-                                                <span class="badge bg-info text-dark me-1">
-                                                    Level @stage.Level
-                                                </span>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">No stages</span>
-                                        }
-                                    </td>
-
-                                    <!-- Approvers -->
-                                    <td style="min-width: 250px;">
-                                        @if (wf.Stages != null && wf.Stages.Any())
-                                        {
-                                            foreach (var stage in wf.Stages)
-                                            {
-                                                <div class="mb-1">
-                                                    <small>
-                                                        <span class="fw-semibold">
-                                                            Level @stage.Level:
-                                                        </span>
-
-                                                        @if (stage.Approvers != null && stage.Approvers.Any())
-                                                        {
-                                                            @(string.Join(", ", stage.Approvers))
-                                                        }
-                                                        else
-                                                        {
-                                                            <span class="text-muted">No approvers</span>
-                                                        }
-                                                    </small>
-                                                </div>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">Not configured</span>
-                                        }
-                                    </td>
-
-                                    <!-- Status -->
-                                    <td>
-                                        <span class="badge @(wf.IsActive ? "bg-success" : "bg-secondary")">
-                                            @(wf.IsActive ? "Active" : "Inactive")
-                                        </span>
-                                    </td>
-
-                                    <!-- Actions -->
-                                    <td class="text-end">
-                                        <button class="btn btn-sm btn-outline-danger"
-                                                onclick="deleteWorkflow(@wf.Id)">
-                                            <i class="bi bi-trash"></i>
-                                            Delete
-                                        </button>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-            else
-            {
-                <div class="text-center py-5">
-                    <div class="mb-3">
-                        <i class="bi bi-diagram-3 fs-1 text-muted"></i>
-                    </div>
-                    <h5 class="fw-semibold">No Workflows Configured</h5>
-                    <p class="text-muted">
-                        Create your first workflow to start managing approvals.
-                    </p>
-                </div>
-            }
-
-        </div>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-diagram-3 display-5 text-muted"></i>
+                <h5 class="fw-semibold mt-3">No Workflows Configured</h5>
+                <p class="text-muted">Create a workflow to start managing document approvals.</p>
+            </div>
+        }
     </div>
+</div>
 
 
-<!-- Add Workflow Modal -->
+<!--  ADD WORKFLOW MODAL --- -->
 <div class="modal fade" id="addWorkflowModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Add Workflow</h5>
+                <h5 class="modal-title"><i class="bi bi-diagram-3 me-2 text-primary"></i>Add Workflow</h5>
                 <button class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label>Workflow Name</label>
-                    <input id="workflowName" class="form-control" placeholder="e.g. Finance Approval Workflow" />
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold">Workflow Name</label>
+                        <input id="wfName" class="form-control" placeholder="e.g. Finance Document Approval" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Target Library</label>
+                        <select id="wfLibrary" class="form-select">
+                            <option value="">Select library…</option>
+                            @foreach (var lib in Model.Libraries)
+                            {
+                                <option value="@lib.Url">@lib.Title</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Approval Levels</label>
+                        <select id="wfLevels" class="form-select">
+                            <option value="">Select…</option>
+                            @foreach (var lvl in Model.ApprovalLevels)
+                            {
+                                <option value="@lvl.Value">@lvl.Text</option>
+                            }
+                        </select>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label>Target Library</label>
-                    <select id="libraryUrl" class="form-select">
-                        <option value="">Select Library</option>
-                        @foreach (var lib in Model.Libraries)
-                        {
-                            <option value="@lib.Url">@lib.Title</option>
-                        }
-                    </select>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Trigger Events</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="trigManual" value="Manual" checked>
+                                <label class="form-check-label" for="trigManual">Manual</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="trigUpload" value="Upload">
+                                <label class="form-check-label" for="trigUpload">On Upload</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="trigUpdate" value="Update">
+                                <label class="form-check-label" for="trigUpdate">On Update</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Rejection Behaviour</label>
+                        <select id="wfRejBehavior" class="form-select">
+                            <option value="ReturnToSubmitter">Return to Submitter (cancel workflow)</option>
+                            <option value="ReturnToPreviousLevel">Return to Previous Level</option>
+                            <option value="RestartWorkflow">Restart from Level 1</option>
+                        </select>
+                    </div>
                 </div>
+
                 <div class="mb-3">
-                    <label>Approval Levels</label>
-                    <select id="approvalLevels" class="form-select">
-                        <option value="">Select Levels</option>
-                        @foreach (var lvl in Model.ApprovalLevels)
-                        {
-                            <option value="@lvl.Value">@lvl.Text</option>
-                        }
-                    </select>
+                    <label class="form-label fw-semibold">E-mail Notifications</label>
+                    <div class="d-flex flex-wrap gap-3">
+                        <div class="form-check"><input class="form-check-input" type="checkbox" id="notifSubmit" checked><label class="form-check-label" for="notifSubmit">On Submit</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" id="notifApprove" checked><label class="form-check-label" for="notifApprove">On Approve</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" id="notifReject" checked><label class="form-check-label" for="notifReject">On Reject</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" id="notifEscalate" checked><label class="form-check-label" for="notifEscalate">On Escalate</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" id="notifDelegate" checked><label class="form-check-label" for="notifDelegate">On Delegate</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" id="notifComplete" checked><label class="form-check-label" for="notifComplete">On Complete</label></div>
+                    </div>
                 </div>
+
+                <hr/>
                 <div id="levelsContainer"></div>
+
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn btn-success" onclick="saveWorkflow()">Save Workflow</button>
+                <button class="btn btn-primary" onclick="saveWorkflow()">
+                    <i class="bi bi-floppy me-1"></i>Save Workflow
+                </button>
             </div>
         </div>
     </div>
 </div>
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script>
-    let userSearchTimer;
+// -------------------------------------------------------------------
+//  TAG-PICKER HELPERS
+// -------------------------------------------------------------------
 
-    $(document).on('keyup', '.approver-input', function () {
+/** Add a user tag to a tag-box, updating the hidden input. */
+function addTag(level, login, displayName, boxType) {
+    // boxType: 'approver' | 'escalate'
+    const $hidden = $(`.${boxType}-hidden[data-level="${level}"]`);
+    const $tags   = $(`.${boxType}-tags[data-level="${level}"]`);
 
-        const input = $(this);
-        const query = input.val().trim();
-        const dropdown = input.siblings('.user-dropdown');
+    const current = $hidden.val() ? $hidden.val().split(',') : [];
+    if (current.includes(login)) return;            // no duplicates
 
-        clearTimeout(userSearchTimer);
+    $tags.append(
+        `<span class="tag-badge" data-login="${login}">
+            ${escHtml(displayName)}
+            <span class="tag-remove" onclick="removeTag(${level},'${escHtml(login)}','${boxType}')">&times;</span>
+         </span>`
+    );
+    current.push(login);
+    $hidden.val(current.join(','));
+}
 
-        if (query.length < 2) {
-            dropdown.addClass('d-none').empty();
-            return;
-        }
+/** Remove a tag and update the hidden input. */
+function removeTag(level, login, boxType) {
+    const $hidden = $(`.${boxType}-hidden[data-level="${level}"]`);
+    $(`.${boxType}-tags[data-level="${level}"] .tag-badge[data-login="${login}"]`).remove();
+    const updated = ($hidden.val() || '').split(',').filter(l => l && l !== login);
+    $hidden.val(updated.join(','));
+}
 
-        userSearchTimer = setTimeout(() => {
+function escHtml(s) {
+    return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-            $.ajax({
-                url: '/Home/SearchUsers',
-                type: 'GET',
-                data: { term: query },
-                success: function (res) {
+// Close dropdowns when clicking outside
+$(document).on('click', function (e) {
+    if (!$(e.target).closest('.picker-wrap').length)
+        $('.tag-dropdown').addClass('d-none').empty();
+});
 
-                    dropdown.empty();
+// Generic search keyup for both approver and escalate pickers
+let _st;
+$(document).on('keyup', '.tag-search', function () {
+    const $input   = $(this);
+    const level    = $input.data('level');
+    const boxType  = $input.data('box');          // 'approver' or 'escalate'
+    const query    = $input.val().trim();
+    const $drop    = $(`.${boxType}-dropdown[data-level="${level}"]`);
 
-                    if (!res || res.length === 0) {
-                        dropdown.addClass('d-none');
-                        return;
-                    }
+    clearTimeout(_st);
+    if (query.length < 2) { $drop.addClass('d-none').empty(); return; }
 
-                    res.forEach(u => {
-                        dropdown.append(`
-                        <li class="list-group-item list-group-item-action user-item"
-                            data-login="${u.Login}">
-                            <strong>${u.DisplayName}</strong><br/>
-                            <small class="text-muted">${u.Login}</small>
-                        </li>
-                    `);
-                    });
-
-                    dropdown.removeClass('d-none');
-                }
-            });
-
-        }, 300);
-    });
-
-
-    $(document).on('click', '.user-item', function () {
-
-        const login = $(this).data('login');
-        const dropdown = $(this).closest('.user-dropdown');
-        const input = dropdown.siblings('.approver-input');
-
-        input.val(login);
-        dropdown.addClass('d-none').empty();
-    });
-
-
-    $(document).ready(function () {
-        $('#approvalLevels').on('change', function () {
-            let levels = parseInt($(this).val());
-            let container = $('#levelsContainer');
-            container.empty();
-            if (!levels) return;
-
-            for (let i = 1; i <= levels; i++) {
-                container.append(
-                    `<div class="card mb-2">
-                    <div class="card-body">
-                        <strong>Level ${i} Approvers</strong>
-                       <div class="position-relative mt-2">
-    <input type="text"
-           class="form-control approver-input"
-           data-level="${i}"
-           placeholder="Search user..." />
-
-    <ul class="list-group position-absolute w-100 user-dropdown d-none"
-        style="z-index:1055;"></ul>
-</div>
-
-                    </div>
-                </div>`
+    _st = setTimeout(() => {
+        $.get('/Home/SearchUsers', { term: query }, res => {
+            $drop.empty();
+            if (!res || !res.length) { $drop.addClass('d-none'); return; }
+            res.forEach(u => {
+                $drop.append(
+                    `<li class="list-group-item list-group-item-action py-2 user-pick-item"
+                         data-login="${escHtml(u.Login)}"
+                         data-display="${escHtml(u.DisplayName)}"
+                         data-level="${level}"
+                         data-box="${boxType}">
+                         <span class="fw-semibold">${escHtml(u.DisplayName)}</span>
+                         <small class="d-block text-muted">${escHtml(u.Login)}</small>
+                     </li>`
                 );
-            }
+            });
+            $drop.removeClass('d-none');
         });
+    }, 280);
+});
+
+// Select a user from the dropdown
+$(document).on('click', '.user-pick-item', function (e) {
+    e.stopPropagation();
+    const login   = $(this).data('login');
+    const display = $(this).data('display');
+    const level   = $(this).data('level');
+    const box     = $(this).data('box');
+
+    addTag(level, login, display, box);
+    // Clear search text and close dropdown
+    $(`.tag-search[data-level="${level}"][data-box="${box}"]`).val('');
+    $(`.${box}-dropdown[data-level="${level}"]`).addClass('d-none').empty();
+    // Remove validation highlight
+    $(`.${box}-tag-box[data-level="${level}"]`).removeClass('border-danger');
+});
+
+// -------------------------------------------------------------------
+//  STAGE CARD BUILDER
+// -------------------------------------------------------------------
+$('#wfLevels').on('change', function () {
+    const n = parseInt(this.value);
+    const $c = $('#levelsContainer').empty();
+    if (!n) return;
+    for (let i = 1; i <= n; i++) {
+        $c.append(`
+        <div class="stage-card p-3 mb-3">
+
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong>Level ${i} - Approvers</strong>
+                <div class="d-flex align-items-center gap-3">
+                    <div>
+                        <label class="form-label mb-0 me-2" style="font-size:.8rem;">Approval mode</label>
+                        <div class="approval-mode-pill">
+                            <button type="button" class="mode-btn active" data-level="${i}"
+                                    onclick="setMode(this,'Any')">Any one</button>
+                            <button type="button" class="mode-btn" data-level="${i}"
+                                    onclick="setMode(this,'All')">All must</button>
+                        </div>
+                        <input type="hidden" class="mode-value" data-level="${i}" value="Any"/>
+                    </div>
+                    <div style="font-size:.8rem;">
+                        <label class="form-label mb-0 me-1">Due in</label>
+                        <input type="number" class="form-control d-inline-block due-days" data-level="${i}"
+                               value="3" min="0" style="width:60px;display:inline-block!important;"/>
+                        <span style="font-size:.78rem;"> days</span>
+                    </div>
+                </div>
+            </div>
+
+            <!--  Approver picker --- -->
+            <div class="picker-wrap position-relative">
+                <div class="approver-tag-box tag-box border rounded" data-level="${i}"
+                     onclick="$(this).find('.tag-search').focus()">
+                    <span class="approver-tags" data-level="${i}"></span>
+                    <input type="text" class="tag-search" data-level="${i}" data-box="approver"
+                           placeholder="Search and add approvers…" autocomplete="off"/>
+                </div>
+                <input type="hidden" class="approver-hidden" data-level="${i}" value=""/>
+                <ul class="list-group position-absolute w-100 tag-dropdown approver-dropdown d-none"
+                    data-level="${i}" style="z-index:1055;max-height:200px;overflow-y:auto;"></ul>
+            </div>
+
+            <!--  Escalate-to picker --- -->
+            <div class="mt-2">
+                <label class="form-label mb-0" style="font-size:.8rem;">
+                    <i class="bi bi-alarm me-1 text-warning"></i>Escalate to (if overdue, optional)
+                </label>
+                <div class="picker-wrap position-relative mt-1">
+                    <div class="escalate-tag-box tag-box box-sm border rounded" data-level="${i}"
+                         onclick="$(this).find('.tag-search').focus()">
+                        <span class="escalate-tags" data-level="${i}"></span>
+                        <input type="text" class="tag-search" data-level="${i}" data-box="escalate"
+                               placeholder="Search user to escalate to…" autocomplete="off"/>
+                    </div>
+                    <input type="hidden" class="escalate-hidden" data-level="${i}" value=""/>
+                    <ul class="list-group position-absolute w-100 tag-dropdown escalate-dropdown d-none"
+                        data-level="${i}" style="z-index:1055;max-height:200px;overflow-y:auto;"></ul>
+                </div>
+            </div>
+
+            <div class="form-check mt-2">
+                <input class="form-check-input allow-delegation" type="checkbox" data-level="${i}" checked>
+                <label class="form-check-label" style="font-size:.82rem;">Allow delegation at this level</label>
+            </div>
+        </div>`);
+    }
+});
+
+function setMode(btn, mode) {
+    const level = $(btn).data('level');
+    $(btn).closest('.approval-mode-pill').find('button').removeClass('active');
+    $(btn).addClass('active');
+    $(`.mode-value[data-level="${level}"]`).val(mode);
+}
+
+// -------------------------------------------------------------------
+//  SAVE WORKFLOW
+// -------------------------------------------------------------------
+function saveWorkflow() {
+    const name    = $('#wfName').val().trim();
+    const library = $('#wfLibrary').val();
+    const levels  = parseInt($('#wfLevels').val());
+
+    let valid = true;
+    $('.is-invalid').removeClass('is-invalid');
+
+    if (!name)    { $('#wfName').addClass('is-invalid');    valid = false; }
+    if (!library) { $('#wfLibrary').addClass('is-invalid'); valid = false; }
+    if (!levels)  { $('#wfLevels').addClass('is-invalid');  valid = false; }
+    if (!valid)   { Swal.fire('Validation', 'Please fill in all required fields.', 'warning'); return; }
+
+    const stages = [];
+    let stageValid = true;
+    for (let i = 1; i <= levels; i++) {
+        const raw = $(`.approver-hidden[data-level="${i}"]`).val().trim();
+        if (!raw) {
+            $(`.approver-tag-box[data-level="${i}"]`).addClass('border-danger');
+            stageValid = false; continue;
+        }
+        const approvers  = [...new Set(raw.split(',').filter(Boolean))];
+        const mode       = $(`.mode-value[data-level="${i}"]`).val();
+        const dueInDays  = parseInt($(`.due-days[data-level="${i}"]`).val()) || 0;
+        const escalate   = $(`.escalate-hidden[data-level="${i}"]`).val().trim();
+        const allowDeleg = $(`.allow-delegation[data-level="${i}"]`).is(':checked');
+        stages.push({ Level: i, Approvers: approvers, ApprovalMode: mode,
+                      DueInDays: dueInDays, EscalateToEmail: escalate, AllowDelegation: allowDeleg });
+    }
+    if (!stageValid) { Swal.fire('Validation', 'Every level must have at least one approver.', 'warning'); return; }
+
+    const triggers = [];
+    if ($('#trigManual').is(':checked'))  triggers.push('Manual');
+    if ($('#trigUpload').is(':checked'))  triggers.push('Upload');
+    if ($('#trigUpdate').is(':checked'))  triggers.push('Update');
+
+    const payload = {
+        Name: name, LibraryUrl: library, Levels: levels, Stages: stages,
+        TriggerEvents:     triggers,
+        RejectionBehavior: $('#wfRejBehavior').val(),
+        NotifyOnSubmit:    $('#notifSubmit').is(':checked'),
+        NotifyOnApprove:   $('#notifApprove').is(':checked'),
+        NotifyOnReject:    $('#notifReject').is(':checked'),
+        NotifyOnEscalate:  $('#notifEscalate').is(':checked'),
+        NotifyOnDelegate:  $('#notifDelegate').is(':checked'),
+        NotifyOnComplete:  $('#notifComplete').is(':checked'),
+    };
+
+    $.ajax({
+        url: '/Workflow/CreateWorkflow', type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        success(r) {
+            if (r.success) {
+                Swal.fire({ icon:'success', title:'Workflow created!', timer:1400, showConfirmButton:false })
+                    .then(() => location.reload());
+            } else { Swal.fire('Error', r.message, 'error'); }
+        },
+        error() { Swal.fire('Error', 'Server error.', 'error'); }
     });
-    function saveWorkflow() {
+}
 
-        let workflowName = $('#workflowName').val().trim();
-        let libraryUrl = $('#libraryUrl').val();
-        let levels = parseInt($('#approvalLevels').val());
-        let token = $('input[name="__RequestVerificationToken"]').val();
-
-        let isValid = true;
-
-        // Reset validation UI
-        $('.form-control, .form-select').removeClass('is-invalid');
-
-        // Basic validations
-        if (!workflowName) {
-            $('#workflowName').addClass('is-invalid');
-            isValid = false;
-        }
-
-        if (!libraryUrl) {
-            $('#libraryUrl').addClass('is-invalid');
-            isValid = false;
-        }
-
-        if (!levels) {
-            $('#approvalLevels').addClass('is-invalid');
-            isValid = false;
-        }
-
-        let stages = [];
-
-        $('.approver-input').each(function () {
-
-            let level = parseInt($(this).data('level'));
-            let rawValue = $(this).val().trim();
-
-            if (!rawValue) {
-                $(this).addClass('is-invalid');
-                isValid = false;
-                return;
-            }
-
-            // Split by comma (if you allow multiple)
-            let users = rawValue
-                .split(',')
-                .map(x => x.trim())
-                .filter(x => x.length > 0);
-
-            // Remove duplicates
-            users = [...new Set(users)];
-
-            if (users.length === 0) {
-                $(this).addClass('is-invalid');
-                isValid = false;
-                return;
-            }
-
-            stages.push({
-                Level: level,
-                Approvers: users
+function deleteWorkflow(id) {
+    Swal.fire({ title:'Delete workflow?', text:'This cannot be undone.', icon:'warning',
+                showCancelButton:true, confirmButtonText:'Yes, delete', confirmButtonColor:'#E84F26' })
+        .then(r => {
+            if (!r.isConfirmed) return;
+            $.post('/Workflow/DeleteWorkflow', { id }, res => {
+                if (res.success) {
+                    Swal.fire({ icon:'success', title:'Deleted!', timer:1200, showConfirmButton:false })
+                        .then(() => location.reload());
+                } else { Swal.fire('Error', res.message, 'error'); }
             });
         });
+}
 
+function toggleWorkflow(id, activate) {
+    $.post('/Workflow/ToggleWorkflow', { id, isActive: activate }, res => {
+        if (res.success) location.reload();
+        else Swal.fire('Error', res.message, 'error');
+    });
+}
 
-        if (!isValid) {
-            Swal.fire('Error', 'Please fill all fields correctly. Each level must have valid email approvers.', 'error');
-            return;
-        }
-
-        if (stages.length !== levels) {
-            Swal.fire('Error', 'All levels must be configured.', 'error');
-            return;
-        }
-
-        $.ajax({
-            url: '/Workflow/CreateWorkflow',
-            type: 'POST',
-            contentType: 'application/json',
-            headers: { 'RequestVerificationToken': token },
-            data: JSON.stringify({
-                Name: workflowName,
-                LibraryUrl: libraryUrl,
-                Levels: levels,
-                Stages: stages
-            }),
-            success: function (res) {
-                if (res.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Workflow saved!',
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => location.reload());
-                } else {
-                    Swal.fire('Error', res.message || 'Error saving workflow', 'error');
-                }
-            },
-            error: function () {
-                Swal.fire('Error', 'Server error occurred.', 'error');
-            }
+function setupInfrastructure() {
+    Swal.fire({ title:'Provision SP Lists?',
+                text:'This will create WorkflowConfigs, ApprovalInstances and WorkflowAuditLog lists.',
+                icon:'question', showCancelButton:true, confirmButtonText:'Provision' })
+        .then(r => {
+            if (!r.isConfirmed) return;
+            $.post('/Workflow/SetupInfrastructure', {}, res => {
+                Swal.fire(res.success ? 'success' : 'error',
+                          res.message || (res.success ? 'Done!' : 'Failed'), res.success ? 'success' : 'error');
+            });
         });
-    }
+}
 
-    function deleteWorkflow(id) {
-        let token = $('input[name="__RequestVerificationToken"]').val();
-
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "This workflow will be deleted!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: '/Workflow/DeleteWorkflow',
-                    type: 'POST',
-                    data: { __RequestVerificationToken: token, id: id },
-                    success: function (res) {
-                        if (res.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Deleted!',
-                                timer: 1200,
-                                showConfirmButton: false
-                            }).then(() => location.reload());
-                        } else {
-                            Swal.fire('Error', res.message || 'Failed to delete', 'error');
-                        }
-                    },
-                    error: function () {
-                        Swal.fire('Error', 'Server error', 'error');
-                    }
-                });
-            }
-        });
-    }
-
+function runEscalation() {
+    $.post('/Workflow/RunEscalation', {}, res => {
+        if (res.success)
+            Swal.fire('Escalation complete', `${res.escalated} overdue instance(s) escalated.`, 'info');
+        else Swal.fire('Error', res.message, 'error');
+    });
+}
 </script>

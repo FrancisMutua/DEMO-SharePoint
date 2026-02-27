@@ -8,7 +8,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Scan Document — DMS</title>
+    <title>Scan Document - DMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
@@ -39,7 +39,7 @@ body {
     min-height:100vh;
 }
 
-/* ── Top bar ── */
+/*  Top bar  */
 .scan-topbar {
     background:var(--scan-surface);
     border-bottom:1px solid var(--scan-border);
@@ -58,7 +58,7 @@ body {
 }
 @@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.7)} }
 
-/* ── Layout ── */
+/*  Layout  */
 .scan-shell {
     max-width:1100px; margin:0 auto; padding:40px 24px;
 }
@@ -71,7 +71,7 @@ body {
     font-family:var(--mono);
 }
 
-/* ── Cards ── */
+/*  Cards  */
 .scan-card {
     background:var(--scan-surface);
     border:1px solid var(--scan-border);
@@ -97,7 +97,7 @@ body {
 }
 .scan-card-body { padding:22px; }
 
-/* ── Status badge ── */
+/*  Status badge  */
 .agent-status {
     display:inline-flex; align-items:center; gap:6px;
     padding:4px 12px; border-radius:20px;
@@ -109,7 +109,7 @@ body {
 .agent-dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
 .agent-status.online .agent-dot { animation:pulse 1.5s infinite; }
 
-/* ── Scanner tiles ── */
+/*  Scanner tiles  */
 .scanner-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
 .scanner-tile {
     background:var(--scan-surface2);
@@ -140,7 +140,7 @@ body {
     font-family:var(--mono);
 }
 
-/* ── Profile tiles ── */
+/*  Profile tiles  */
 .profile-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
 .profile-tile {
     background:var(--scan-surface2);
@@ -166,7 +166,7 @@ body {
     font-family:var(--mono);
 }
 
-/* ── Form controls ── */
+/*  Form controls  */
 .scan-label {
     display:block; font-family:var(--mono); font-size:.7rem; font-weight:600;
     letter-spacing:.08em; text-transform:uppercase; color:var(--scan-muted);
@@ -182,7 +182,7 @@ body {
 .scan-control:focus { outline:none; border-color:var(--scan-accent); box-shadow:0 0 0 3px rgba(232,79,38,.12); }
 .scan-control option { background:var(--scan-surface2); }
 
-/* ── Toggles ── */
+/*  Toggles  */
 .scan-toggle { display:flex; align-items:center; gap:10px; cursor:pointer; }
 .toggle-track {
     width:42px; height:24px; border-radius:12px;
@@ -200,12 +200,12 @@ input[type=checkbox]:checked + .toggle-track .toggle-thumb { transform:translate
 input[type=checkbox].scan-chk { display:none; }
 .toggle-label { font-size:.82rem; color:var(--scan-subtext); user-select:none; }
 
-/* ── Separator ── */
+/*  Separator  */
 .scan-sep {
     border:none; border-top:1px solid var(--scan-border); margin:20px 0;
 }
 
-/* ── Scan button ── */
+/*  Scan button  */
 .btn-scan {
     background:var(--scan-accent); color:#fff;
     border:none; border-radius:8px;
@@ -226,7 +226,7 @@ input[type=checkbox].scan-chk { display:none; }
 }
 .btn-scan-outline:hover { border-color:var(--scan-muted); color:var(--scan-text); }
 
-/* ── Progress overlay ── */
+/*  Progress overlay  */
 .scan-progress-overlay {
     display:none; position:fixed; inset:0; background:rgba(13,17,23,.88);
     backdrop-filter:blur(8px); z-index:9000;
@@ -261,7 +261,7 @@ input[type=checkbox].scan-chk { display:none; }
 .log-line.warn { color:var(--scan-warning); }
 .log-line.err  { color:var(--scan-accent);  }
 
-/* ── Offline banner ── */
+/*  Offline banner  */
 .offline-banner {
     background:rgba(232,79,38,.08); border:1px solid rgba(232,79,38,.25);
     border-radius:8px; padding:14px 18px;
@@ -270,7 +270,7 @@ input[type=checkbox].scan-chk { display:none; }
     margin-bottom:24px;
 }
 
-/* ── Steps ── */
+/*  Steps  */
 .scan-steps { display:flex; align-items:center; margin-bottom:32px; }
 .scan-step  { display:flex; align-items:center; gap:8px; }
 .step-circle {
@@ -336,7 +336,7 @@ input[type=checkbox].scan-chk { display:none; }
             <div class="offline-banner">
                 <i class="bi bi-exclamation-triangle" style="font-size:1.2rem;flex-shrink:0;"></i>
                 <div>
-                    <strong>Scanner agent unavailable</strong> — @Model.AgentErrorMessage
+                    <strong>Scanner agent unavailable</strong> - @Model.AgentErrorMessage
                     <div style="font-size:.75rem;margin-top:2px;opacity:.75;">
                         Ensure the scan agent service is running and accessible on the network.
                     </div>
@@ -367,7 +367,7 @@ input[type=checkbox].scan-chk { display:none; }
                                     <div class="scanner-tile" onclick="selectScanner(this, '@scanner')">
                                         <i class="bi bi-printer-fill tile-icon"></i>
                                         <div class="tile-name">@scanner</div>
-                                        <div class="tile-status">● Ready</div>
+                                        <div class="tile-status">Ready</div>
                                     </div>
                                 }
                             </div>
@@ -437,7 +437,7 @@ input[type=checkbox].scan-chk { display:none; }
                             <div id="scannerDisplay"
                                  style="background:var(--scan-surface2);border:1px solid var(--scan-border);border-radius:7px;
                                     padding:10px 14px;font-family:var(--mono);font-size:.78rem;color:var(--scan-muted);">
-                                — none selected —
+                                -- none selected --
                             </div>
                         </div>
 
@@ -475,7 +475,7 @@ input[type=checkbox].scan-chk { display:none; }
                             <div class="col-6">
                                 <label class="scan-label">Target Library</label>
                                 <select id="librarySelect" class="scan-control">
-                                    <option value="">— Select —</option>
+                                    <option value="">-- Select --</option>
                                     @foreach (var lib in Model.LibraryOptions)
                                     {
                                         <option value="@lib.Value">@lib.Text</option>
@@ -526,7 +526,7 @@ input[type=checkbox].scan-chk { display:none; }
         </div>
     </div>
 
-    <!-- ── Scan progress overlay ── -->
+    <!--  Scan progress overlay  -->
     <div class="scan-progress-overlay" id="progressOverlay">
         <div style="text-align:center;">
             <div style="font-family:var(--mono);font-size:.68rem;color:var(--scan-muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:20px;">
@@ -555,7 +555,7 @@ input[type=checkbox].scan-chk { display:none; }
 let _currentJobId = null;
 let _pollTimer    = null;
 
-// ── Toggle sync ─────────────────────────────────────────────────────────
+//  Toggle sync 
 document.getElementById('chkDuplex').addEventListener('change', function() {
     document.getElementById('selectedDuplex').value = this.checked ? 'true' : 'false';
     this.nextElementSibling.style.background = this.checked ? 'var(--scan-accent)' : 'var(--scan-border)';
@@ -569,7 +569,7 @@ document.getElementById('chkADF').addEventListener('change', function() {
     updateSummary();
 });
 
-// ── Scanner tile selection ───────────────────────────────────────────────
+//  Scanner tile selection 
 function selectScanner(el, name) {
     document.querySelectorAll('.scanner-tile').forEach(t => t.classList.remove('selected'));
     el.classList.add('selected');
@@ -580,7 +580,7 @@ function selectScanner(el, name) {
     document.getElementById('scanBtnHint').textContent = 'Ready to scan';
 }
 
-// ── Profile tile selection ───────────────────────────────────────────────
+//  Profile tile selection 
 function selectProfile(el, dpi, color, paper, duplex, adf) {
     document.querySelectorAll('.profile-tile').forEach(t => t.classList.remove('selected'));
     el.classList.add('selected');
@@ -619,7 +619,7 @@ document.getElementById('dpiSelect').addEventListener('change', updateSummary);
 document.getElementById('colorSelect').addEventListener('change', updateSummary);
 document.getElementById('paperSelect').addEventListener('change', updateSummary);
 
-// ── Start scan ──────────────────────────────────────────────────────────
+//  Start scan 
 function startScan() {
     const scanner = document.getElementById('selectedScanner').value;
     if (!scanner) { Swal.fire('Select Scanner', 'Please select a scanner first.', 'warning'); return; }
@@ -676,7 +676,7 @@ function pollProgress() {
                 'Pages: ' + res.pagesScanned + (res.estimatedTotal ? ' / ~' + res.estimatedTotal : '');
 
         if (res.status === 'Completed' || pct >= 100) {
-            addLog('Scan complete — processing…', 'ok');
+            addLog('Scan complete - processing...', 'ok');
             document.getElementById('progressStatus').textContent = 'Processing document…';
             setTimeout(() => submitProcessScan(), 800);
         } else if (res.status === 'Failed' || res.error) {
@@ -687,7 +687,7 @@ function pollProgress() {
             _pollTimer = setTimeout(pollProgress, 1200);
         }
     }).fail(() => {
-        addLog('Lost connection — retrying…', 'warn');
+        addLog('Lost connection - retrying...', 'warn');
         _pollTimer = setTimeout(pollProgress, 3000);
     });
 }
